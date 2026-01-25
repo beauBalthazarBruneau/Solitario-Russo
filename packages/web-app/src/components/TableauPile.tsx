@@ -53,9 +53,14 @@ export function TableauPile({
     onDrop(location)
   }
 
+  const pileId = `pile-tableau-${location.owner}-${location.index}`
+
   if (cards.length === 0) {
     return (
-      <div className={`tableau-pile tableau-pile--empty tableau-pile--${direction}`}>
+      <div
+        className={`tableau-pile tableau-pile--empty tableau-pile--${direction}`}
+        data-pile-id={pileId}
+      >
         <Card
           card={null}
           onClick={handleClick}
@@ -70,6 +75,7 @@ export function TableauPile({
   return (
     <div
       className={`tableau-pile tableau-pile--${direction}`}
+      data-pile-id={pileId}
       style={{ '--card-count': cards.length } as React.CSSProperties}
     >
       {cards.map((card, index) => {

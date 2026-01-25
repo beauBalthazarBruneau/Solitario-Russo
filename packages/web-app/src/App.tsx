@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   initializeGame,
   applyMove,
@@ -7,17 +7,46 @@ import {
   type GameState,
   type Move,
   type PileLocation,
+  type Card,
 } from '@russian-bank/game-engine'
 import { GameBoard } from './components/GameBoard'
 import { GameStatus } from './components/GameStatus'
 import { HistorySheet } from './components/HistorySheet'
+import { AnimatingCard } from './components/AnimatingCard'
 import './App.css'
+
+interface AnimationState {
+  card: Card
+  from: { x: number; y: number; width: number; height: number }
+  to: { x: number; y: number; width: number; height: number }
+  pendingState: GameState
+  pendingHistory: GameState[]
+}
+
+function getPileDataId(location: PileLocation): string {
+  if (location.type === 'foundation') {
+    return `pile-foundation-${location.index}`
+  }
+  if (location.index !== undefined) {
+    return `pile-${location.type}-${location.owner}-${location.index}`
+  }
+  return `pile-${location.type}-${location.owner}`
+}
+
+function getElementPosition(dataId: string): { x: number; y: number; width: number; height: number } | null {
+  const element = document.querySelector(`[data-pile-id="${dataId}"]`)
+  if (!element) return null
+  const rect = element.getBoundingClientRect()
+  return { x: rect.left, y: rect.top, width: rect.width, height: rect.height }
+}
 
 function App() {
   const [gameState, setGameState] = useState<GameState>(() => initializeGame())
   const [stateHistory, setStateHistory] = useState<GameState[]>([])
   const [selectedPile, setSelectedPile] = useState<PileLocation | null>(null)
   const [validMoves, setValidMoves] = useState<Move[]>([])
+  const [animation, setAnimation] = useState<AnimationState | null>(null)
+  const isAnimating = useRef(false)
 
   const handleNewGame = useCallback(() => {
     setGameState(initializeGame())
@@ -62,6 +91,8 @@ function App() {
 
   const tryMove = useCallback(
     (toLocation: PileLocation) => {
+      if (isAnimating.current) return
+
       const move = validMoves.find(
         (m) =>
           m.to.type === toLocation.type &&
@@ -72,16 +103,42 @@ function App() {
       if (move) {
         const result = applyMove(gameState, move)
         if (result.valid && result.newState) {
-          setStateHistory((prev) => [...prev, gameState])
-          setGameState(result.newState)
+          // Get positions for animation
+          const fromPos = getElementPosition(getPileDataId(move.from))
+          const toPos = getElementPosition(getPileDataId(move.to))
+
+          if (fromPos && toPos) {
+            // Start animation
+            isAnimating.current = true
+            setAnimation({
+              card: move.card,
+              from: fromPos,
+              to: toPos,
+              pendingState: result.newState,
+              pendingHistory: [...stateHistory, gameState],
+            })
+          } else {
+            // No animation, just apply immediately
+            setStateHistory((prev) => [...prev, gameState])
+            setGameState(result.newState)
+          }
         }
       }
 
       setSelectedPile(null)
       setValidMoves([])
     },
-    [gameState, validMoves]
+    [gameState, validMoves, stateHistory]
   )
+
+  const handleAnimationComplete = useCallback(() => {
+    if (animation) {
+      setGameState(animation.pendingState)
+      setStateHistory(animation.pendingHistory)
+      setAnimation(null)
+      isAnimating.current = false
+    }
+  }, [animation])
 
   const handlePileClick = useCallback(
     (location: PileLocation) => {
@@ -174,7 +231,7 @@ function App() {
         gameState={gameState}
         onNewGame={handleNewGame}
         onUndo={handleUndo}
-        canUndo={stateHistory.length > 0}
+        canUndo={stateHistory.length > 0 && !animation}
       />
       <GameBoard
         gameState={gameState}
@@ -187,6 +244,14 @@ function App() {
         onDrop={handleDrop}
       />
       <HistorySheet history={gameState.history} />
+      {animation && (
+        <AnimatingCard
+          card={animation.card}
+          from={animation.from}
+          to={animation.to}
+          onComplete={handleAnimationComplete}
+        />
+      )}
     </div>
   )
 }

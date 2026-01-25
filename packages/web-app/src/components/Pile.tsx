@@ -58,8 +58,12 @@ export function Pile({
     onDrop?.(location)
   }
 
+  const pileId = location.index !== undefined
+    ? `pile-${location.type}-${location.owner}-${location.index}`
+    : `pile-${location.type}-${location.owner}`
+
   return (
-    <div className="pile">
+    <div className="pile" data-pile-id={pileId}>
       {label && <div className="pile__label">{label}</div>}
       <div className="pile__stack">
         <Card

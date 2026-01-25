@@ -46,10 +46,13 @@ export function FoundationPile({
     onDrop(location)
   }
 
+  const pileId = `pile-foundation-${location.index}`
+
   if (cards.length === 0) {
     return (
       <div
         className={`foundation-pile foundation-pile--empty ${validTarget ? 'foundation-pile--valid-target' : ''}`}
+        data-pile-id={pileId}
         onClick={handleClick}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
@@ -65,7 +68,7 @@ export function FoundationPile({
   }
 
   return (
-    <div className="foundation-pile">
+    <div className="foundation-pile" data-pile-id={pileId}>
       <Card
         card={topCard ?? null}
         onClick={handleClick}

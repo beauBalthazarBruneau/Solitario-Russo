@@ -7,18 +7,62 @@
 Monorepo with three packages:
 - **game-engine**: Core game logic (shared)
 - **ai-training**: Self-play and evolution (runs on Mac Mini)
-- **web-app**: Mobile game UI (later)
+- **web-app**: Mobile game UI
 
 Training goal: Run 100k+ self-play games over the weekend, evolving AI weights.
 
+**Repository:** https://github.com/beauBalthazarBruneau/Solitario-Russo
+
 ---
 
-## Phase 1: Monorepo Setup
+## Status Overview
 
-### Task 1.1: Initialize Monorepo Structure
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Monorepo Setup | ✅ Complete | Using npm workspaces (not pnpm) |
+| Phase 2: Game Engine | ✅ Complete | Full rules, notation, seed support |
+| Phase 3: Web App | ✅ Complete | Drag/drop, animations, undo, history |
+| Phase 4: AI Training | ⏳ Pending | Next up |
+
+---
+
+## Completed Features
+
+### Game Engine
+- ✅ Core types (Card, GameState, Move, PileLocation)
+- ✅ Deck creation and seeded shuffle (for reproducible games)
+- ✅ Game initialization with seed storage
+- ✅ Suit-specific foundations (hearts, diamonds, clubs, spades by row)
+- ✅ Unified tableau rules (down, alternating colors)
+- ✅ Attack moves on opponent's waste/reserve (same suit ±1)
+- ✅ Draw mechanic with drawnCard tracking
+- ✅ Move notation system (RBN - Russian Bank Notation)
+- ✅ Move history tracking
+- ✅ Win condition detection
+- ✅ Full test suite
+
+### Web App
+- ✅ React + Vite setup
+- ✅ Card rendering with cardsJS SVGs
+- ✅ Foundation piles with suit icons
+- ✅ Horizontal tableau fanning (away from center)
+- ✅ Click-to-select and click-to-move
+- ✅ Drag and drop support
+- ✅ Card movement animations (glide effect)
+- ✅ Valid move highlighting
+- ✅ Undo functionality with state history
+- ✅ Move history bottom sheet
+- ✅ Game status display (turn, scores, move count)
+- ✅ New Game button
+
+---
+
+## Phase 1: Monorepo Setup ✅
+
+### Task 1.1: Initialize Monorepo Structure ✅
 
 ```
-Create a new monorepo using pnpm workspaces:
+Created monorepo using npm workspaces:
 
 /russian-bank
   /packages
@@ -39,10 +83,10 @@ Use TypeScript with project references for fast builds.
 pnpm for package management (fast, good monorepo support).
 ```
 
-### Task 1.2: Shared TypeScript Config
+### Task 1.2: Shared TypeScript Config ✅
 
 ```
-Create /tsconfig.base.json with strict settings:
+Created /tsconfig.base.json with strict settings:
 - strict: true
 - noUncheckedIndexedAccess: true
 - ES2022 target
@@ -53,9 +97,9 @@ Each package extends this base config.
 
 ---
 
-## Phase 2: Game Engine Package
+## Phase 2: Game Engine Package ✅
 
-### Task 2.1: Package Setup
+### Task 2.1: Package Setup ✅
 
 ```
 Create /packages/game-engine:
@@ -76,10 +120,10 @@ Dependencies: none (pure TypeScript)
 Dev dependencies: vitest, typescript
 ```
 
-### Task 2.2: Core Types
+### Task 2.2: Core Types ✅
 
 ```
-Create /packages/game-engine/src/types.ts:
+Created /packages/game-engine/src/types.ts:
 
 type Suit = 'hearts' | 'diamonds' | 'clubs' | 'spades'
 type Rank = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13
@@ -129,10 +173,10 @@ interface MoveResult {
 }
 ```
 
-### Task 2.3: Deck and Shuffle
+### Task 2.3: Deck and Shuffle ✅
 
 ```
-Create /packages/game-engine/src/deck.ts:
+Created /packages/game-engine/src/deck.ts:
 
 - createDeck(owner: 'player1' | 'player2'): Card[]
   Returns 52 cards for one player
@@ -145,10 +189,10 @@ Create /packages/game-engine/src/deck.ts:
   For reproducible self-play games
 ```
 
-### Task 2.4: Game Initialization
+### Task 2.4: Game Initialization ✅
 
 ```
-Create /packages/game-engine/src/engine.ts:
+Created /packages/game-engine/src/engine.ts:
 
 - initializeGame(seed?: number): GameState
   1. Create and shuffle both decks
@@ -161,10 +205,10 @@ Create /packages/game-engine/src/engine.ts:
   Deep clone for immutability
 ```
 
-### Task 2.5: Move Validation
+### Task 2.5: Move Validation ✅
 
 ```
-Create /packages/game-engine/src/validation.ts:
+Created /packages/game-engine/src/validation.ts:
 
 - getValidMoves(state: GameState): Move[]
   Returns all legal moves for current player
@@ -188,10 +232,10 @@ Helper functions:
 - getTopCard(pile: Card[]): Card | undefined
 ```
 
-### Task 2.6: Move Execution
+### Task 2.6: Move Execution ✅
 
 ```
-Add to /packages/game-engine/src/engine.ts:
+Added to /packages/game-engine/src/engine.ts:
 
 - applyMove(state: GameState, move: Move): GameState
   1. Validate move
@@ -209,10 +253,10 @@ Add to /packages/game-engine/src/engine.ts:
   Flip currentTurn, reset turnPhase
 ```
 
-### Task 2.7: Game Engine Tests
+### Task 2.7: Game Engine Tests ✅
 
 ```
-Create /packages/game-engine/tests/engine.test.ts:
+Created /packages/game-engine/tests/engine.test.ts:
 
 Test cases:
 - Initial state is valid (correct card counts everywhere)
@@ -232,7 +276,7 @@ Create /packages/game-engine/tests/validation.test.ts:
 
 ---
 
-## Phase 3: AI Training Package
+## Phase 3: AI Training Package ⏳ (Next Up)
 
 ### Task 3.1: Package Setup
 
