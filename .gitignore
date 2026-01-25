@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Training data (keep checkpoints locally, exclude from git)
+packages/ai-training/data/checkpoints/
+packages/ai-training/data/results/
+!packages/ai-training/data/.gitkeep
+
+# Test coverage
+coverage/
+
+# Misc
+*.tmp
+*.temp

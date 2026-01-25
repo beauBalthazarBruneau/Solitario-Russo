@@ -1,0 +1,50 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --card-width: 60px;
+  --card-height: 84px;
+  --card-radius: 6px;
+  --card-gap: 8px;
+  --pile-gap: 12px;
+  --bg-color: #1a472a;
+  --felt-color: #2d5a3d;
+  --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: var(--bg-color);
+  color: white;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --card-width: 70px;
+    --card-height: 98px;
+    --card-radius: 8px;
+    --card-gap: 10px;
+    --pile-gap: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --card-width: 80px;
+    --card-height: 112px;
+    --card-gap: 12px;
+    --pile-gap: 20px;
+  }
+}

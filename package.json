@@ -1,0 +1,21 @@
+{
+  "name": "russian-bank",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "train": "npm run train --workspace=@russian-bank/ai-training",
+    "train:weekend": "npm run train:weekend --workspace=@russian-bank/ai-training",
+    "benchmark": "npm run benchmark --workspace=@russian-bank/ai-training",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

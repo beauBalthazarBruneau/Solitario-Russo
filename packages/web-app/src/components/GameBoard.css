@@ -1,0 +1,90 @@
+.game-board {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.player-area {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--pile-gap);
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease;
+}
+
+.player-area--active {
+  background: rgba(255, 215, 0, 0.15);
+  box-shadow: inset 0 0 0 2px rgba(255, 215, 0, 0.3);
+}
+
+.player-area--top {
+  flex-direction: row;
+}
+
+.player-area--bottom {
+  flex-direction: row;
+}
+
+.player-area__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pile-gap);
+}
+
+.player-area__tableau {
+  display: flex;
+  gap: var(--card-gap);
+  flex: 1;
+  justify-content: center;
+}
+
+.foundations {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--card-gap);
+  padding: 12px;
+}
+
+.foundations__row {
+  display: flex;
+  gap: var(--card-gap);
+}
+
+@media (min-width: 768px) {
+  .game-board {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .player-area {
+    padding: 12px;
+  }
+
+  .foundations {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .player-area {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .player-area__side {
+    flex-direction: row;
+  }
+
+  .player-area__tableau {
+    order: -1;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}

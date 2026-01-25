@@ -1,0 +1,97 @@
+.card {
+  width: var(--card-width);
+  height: var(--card-height);
+  border-radius: var(--card-radius);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.card--empty {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+}
+
+.card--face-down {
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  border: 2px solid #1a252f;
+  box-shadow: var(--card-shadow);
+}
+
+.card--face-down.card--player1 {
+  background: linear-gradient(135deg, #8b0000 0%, #b22222 100%);
+  border-color: #5c0000;
+}
+
+.card--face-down.card--player2 {
+  background: linear-gradient(135deg, #00008b 0%, #4169e1 100%);
+  border-color: #00005c;
+}
+
+.card--face-up {
+  background: white;
+  border: 1px solid #ccc;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px;
+  position: relative;
+}
+
+.card--red {
+  color: #d32f2f;
+}
+
+.card--black {
+  color: #212121;
+}
+
+.card--selected {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px #ffd700;
+}
+
+.card--valid-target {
+  box-shadow: 0 0 0 3px #4caf50;
+}
+
+.card--valid-target.card--empty {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: #4caf50;
+}
+
+.card__corner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.card__corner--bottom {
+  transform: rotate(180deg);
+}
+
+.card__rank {
+  font-size: calc(var(--card-width) * 0.22);
+  font-weight: bold;
+}
+
+.card__suit {
+  font-size: calc(var(--card-width) * 0.18);
+}
+
+.card__center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.card__suit--large {
+  font-size: calc(var(--card-width) * 0.4);
+}

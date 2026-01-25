@@ -1,0 +1,25 @@
+{
+  "name": "@russian-bank/ai-training",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "train": "tsx src/scripts/train.ts",
+    "train:weekend": "tsx src/scripts/train.ts -g 500 -p 100 -G 50",
+    "benchmark": "tsx src/scripts/benchmark.ts",
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@russian-bank/game-engine": "*",
+    "commander": "^12.0.0",
+    "pino": "^8.18.0",
+    "pino-pretty": "^10.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}
