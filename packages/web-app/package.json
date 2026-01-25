@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@russian-bank/ai-training": "*",
     "@russian-bank/game-engine": "*",
     "cardsJS": "^1.1.1",
     "react": "^18.2.0",

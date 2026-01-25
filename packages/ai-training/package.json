@@ -2,6 +2,14 @@
   "name": "@russian-bank/ai-training",
   "version": "1.0.0",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
     "train": "tsx src/scripts/train.ts",
     "train:weekend": "tsx src/scripts/train.ts -g 500 -p 100 -G 50",

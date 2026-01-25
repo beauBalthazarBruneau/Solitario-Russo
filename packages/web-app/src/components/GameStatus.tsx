@@ -8,9 +8,11 @@ interface GameStatusProps {
   canUndo: boolean
   showHints: boolean
   onToggleHints: () => void
+  vsAI: boolean
+  onToggleAI: () => void
 }
 
-export function GameStatus({ gameState, onNewGame, onUndo, canUndo, showHints, onToggleHints }: GameStatusProps) {
+export function GameStatus({ gameState, onNewGame, onUndo, canUndo, showHints, onToggleHints, vsAI, onToggleAI }: GameStatusProps) {
   const { currentTurn, winner, moveCount, player1, player2 } = gameState
 
   const p1CardsLeft = player1.reserve.length + player1.hand.length + player1.waste.length
@@ -21,11 +23,11 @@ export function GameStatus({ gameState, onNewGame, onUndo, canUndo, showHints, o
       <div className="game-status__info">
         {winner ? (
           <span className="game-status__winner">
-            {winner === 'player1' ? 'You Win!' : 'Opponent Wins!'}
+            {winner === 'player1' ? 'You Win!' : vsAI ? 'AI Wins!' : 'Opponent Wins!'}
           </span>
         ) : (
           <span className="game-status__turn">
-            {currentTurn === 'player1' ? 'Your Turn' : "Opponent's Turn"}
+            {currentTurn === 'player1' ? 'Your Turn' : vsAI ? "AI's Turn" : "Opponent's Turn"}
           </span>
         )}
         <span className="game-status__moves">Moves: {moveCount}</span>
@@ -40,6 +42,12 @@ export function GameStatus({ gameState, onNewGame, onUndo, canUndo, showHints, o
       </div>
       <button className="game-status__button" onClick={onNewGame}>
         New Game
+      </button>
+      <button
+        className={`game-status__button game-status__button--ai ${vsAI ? 'game-status__button--active' : ''}`}
+        onClick={onToggleAI}
+      >
+        vs AI
       </button>
       <button
         className={`game-status__button game-status__button--hints ${showHints ? 'game-status__button--active' : ''}`}

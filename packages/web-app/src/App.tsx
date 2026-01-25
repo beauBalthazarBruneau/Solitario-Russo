@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import {
   initializeGame,
   applyMove,
@@ -9,6 +9,7 @@ import {
   type PileLocation,
   type Card,
 } from '@russian-bank/game-engine'
+import { computeAITurn } from '@russian-bank/ai-training'
 import { GameBoard } from './components/GameBoard'
 import { GameStatus } from './components/GameStatus'
 import { HistorySheet } from './components/HistorySheet'
@@ -47,6 +48,8 @@ function App() {
   const [validMoves, setValidMoves] = useState<Move[]>([])
   const [animation, setAnimation] = useState<AnimationState | null>(null)
   const [showHints, setShowHints] = useState(false)
+  const [vsAI, setVsAI] = useState(true)
+  const aiSpeed = 400 // ms between AI moves
   const isAnimating = useRef(false)
 
   // Get all source locations that have valid moves (for hints)
@@ -254,6 +257,48 @@ function App() {
     [gameState.winner, gameState.currentTurn]
   )
 
+  // AI turn handling - compute all moves upfront, then play them back
+  const aiMovesRef = useRef<{ state: GameState }[]>([])
+  const aiMoveIndexRef = useRef(0)
+
+  // Compute AI moves when it becomes AI's turn
+  useEffect(() => {
+    if (!vsAI || gameState.currentTurn !== 'player2' || gameState.winner || animation) {
+      return
+    }
+
+    // Only compute if we don't have moves queued
+    if (aiMovesRef.current.length === 0) {
+      const moves = computeAITurn(gameState)
+      aiMovesRef.current = moves
+      aiMoveIndexRef.current = 0
+    }
+  }, [vsAI, gameState, animation])
+
+  // Play back AI moves one at a time
+  useEffect(() => {
+    if (aiMovesRef.current.length === 0 || aiMoveIndexRef.current >= aiMovesRef.current.length) {
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      const step = aiMovesRef.current[aiMoveIndexRef.current]
+      if (step) {
+        setStateHistory(prev => [...prev, gameState])
+        setGameState(step.state)
+        aiMoveIndexRef.current++
+
+        // Clear queue when done
+        if (aiMoveIndexRef.current >= aiMovesRef.current.length) {
+          aiMovesRef.current = []
+          aiMoveIndexRef.current = 0
+        }
+      }
+    }, aiSpeed)
+
+    return () => clearTimeout(timeoutId)
+  }, [gameState, aiSpeed])
+
   return (
     <div className="app">
       <GameStatus
@@ -263,6 +308,8 @@ function App() {
         canUndo={stateHistory.length > 0 && !animation}
         showHints={showHints}
         onToggleHints={() => setShowHints((h) => !h)}
+        vsAI={vsAI}
+        onToggleAI={() => setVsAI((v) => !v)}
       />
       <GameBoard
         gameState={gameState}
