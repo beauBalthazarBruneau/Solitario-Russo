@@ -7,6 +7,7 @@ interface CardProps {
   onClick?: () => void
   selected?: boolean
   validTarget?: boolean
+  hint?: boolean
   draggable?: boolean
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
@@ -49,6 +50,7 @@ export function Card({
   onClick,
   selected,
   validTarget,
+  hint,
   draggable = false,
   onDragStart,
   onDragEnd,
@@ -79,7 +81,7 @@ export function Card({
 
   return (
     <div
-      className={`card card--face-up ${selected ? 'card--selected' : ''} ${validTarget ? 'card--valid-target' : ''}`}
+      className={`card card--face-up ${selected ? 'card--selected' : ''} ${validTarget ? 'card--valid-target' : ''} ${hint ? 'card--hint' : ''}`}
       onClick={onClick}
       draggable={draggable}
       onDragStart={onDragStart}

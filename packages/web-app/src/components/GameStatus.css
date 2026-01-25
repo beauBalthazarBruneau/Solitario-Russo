@@ -70,6 +70,23 @@
   cursor: not-allowed;
 }
 
+.game-status__button--hints {
+  background: #666;
+}
+
+.game-status__button--hints:hover {
+  background: #555;
+}
+
+.game-status__button--hints.game-status__button--active {
+  background: #f9a825;
+  color: #000;
+}
+
+.game-status__button--hints.game-status__button--active:hover {
+  background: #f57f17;
+}
+
 .game-status__button--undo {
   margin-left: auto;
   background: #666;

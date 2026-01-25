@@ -15,6 +15,7 @@ interface PileProps {
   onDragStart?: (location: PileLocation) => void
   onDragEnd?: () => void
   onDrop?: (location: PileLocation) => void
+  hasMovesFrom?: (location: PileLocation) => boolean
 }
 
 export function Pile({
@@ -30,10 +31,12 @@ export function Pile({
   onDragStart,
   onDragEnd,
   onDrop,
+  hasMovesFrom,
 }: PileProps) {
   const topCard = cards[cards.length - 1]
   const selected = isSelected(location)
   const validTarget = isValidTarget(location)
+  const hasHint = hasMovesFrom?.(location) ?? false
 
   const handleClick = () => onClick(location)
 
@@ -72,6 +75,7 @@ export function Pile({
           onClick={handleClick}
           selected={selected}
           validTarget={validTarget}
+          hint={hasHint && !faceDown && cards.length > 0}
           draggable={canDrag && !faceDown && cards.length > 0}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}

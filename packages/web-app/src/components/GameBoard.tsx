@@ -16,6 +16,7 @@ interface GameBoardProps {
   onDragStart: (location: PileLocation) => void
   onDragEnd: () => void
   onDrop: (location: PileLocation) => void
+  hasMovesFrom: (location: PileLocation) => boolean
 }
 
 export function GameBoard({
@@ -27,6 +28,7 @@ export function GameBoard({
   onDragStart,
   onDragEnd,
   onDrop,
+  hasMovesFrom,
 }: GameBoardProps) {
   const { player1, player2, foundations, currentTurn } = gameState
 
@@ -37,6 +39,7 @@ export function GameBoard({
     onDragStart,
     onDragEnd,
     onDrop,
+    hasMovesFrom,
   }
 
   return (

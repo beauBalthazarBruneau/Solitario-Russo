@@ -13,6 +13,7 @@ interface TableauPileProps {
   onDragStart: (location: PileLocation) => void
   onDragEnd: () => void
   onDrop: (location: PileLocation) => void
+  hasMovesFrom?: (location: PileLocation) => boolean
 }
 
 export function TableauPile({
@@ -26,9 +27,11 @@ export function TableauPile({
   onDragStart,
   onDragEnd,
   onDrop,
+  hasMovesFrom,
 }: TableauPileProps) {
   const selected = isSelected(location)
   const validTarget = isValidTarget(location)
+  const hasHint = hasMovesFrom?.(location) ?? false
 
   const handleClick = () => onClick(location)
 
@@ -91,6 +94,7 @@ export function TableauPile({
               onClick={isTop ? handleClick : undefined}
               selected={isTop && selected}
               validTarget={isTop && validTarget}
+              hint={isTop && hasHint}
               draggable={isTop && canDrag}
               onDragStart={isTop ? handleDragStart : undefined}
               onDragEnd={isTop ? handleDragEnd : undefined}

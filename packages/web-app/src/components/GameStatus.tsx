@@ -6,9 +6,11 @@ interface GameStatusProps {
   onNewGame: () => void
   onUndo: () => void
   canUndo: boolean
+  showHints: boolean
+  onToggleHints: () => void
 }
 
-export function GameStatus({ gameState, onNewGame, onUndo, canUndo }: GameStatusProps) {
+export function GameStatus({ gameState, onNewGame, onUndo, canUndo, showHints, onToggleHints }: GameStatusProps) {
   const { currentTurn, winner, moveCount, player1, player2 } = gameState
 
   const p1CardsLeft = player1.reserve.length + player1.hand.length + player1.waste.length
@@ -38,6 +40,12 @@ export function GameStatus({ gameState, onNewGame, onUndo, canUndo }: GameStatus
       </div>
       <button className="game-status__button" onClick={onNewGame}>
         New Game
+      </button>
+      <button
+        className={`game-status__button game-status__button--hints ${showHints ? 'game-status__button--active' : ''}`}
+        onClick={onToggleHints}
+      >
+        Hints
       </button>
       <button
         className="game-status__button game-status__button--undo"

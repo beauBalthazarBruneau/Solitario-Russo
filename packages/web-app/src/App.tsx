@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import {
   initializeGame,
   applyMove,
@@ -46,7 +46,36 @@ function App() {
   const [selectedPile, setSelectedPile] = useState<PileLocation | null>(null)
   const [validMoves, setValidMoves] = useState<Move[]>([])
   const [animation, setAnimation] = useState<AnimationState | null>(null)
+  const [showHints, setShowHints] = useState(false)
   const isAnimating = useRef(false)
+
+  // Get all source locations that have valid moves (for hints)
+  const sourcesWithMoves = useMemo(() => {
+    if (!showHints || gameState.winner || animation) return []
+    const moves = getValidMoves(gameState)
+    const sources = new Map<string, { location: PileLocation; moveCount: number }>()
+
+    for (const move of moves) {
+      const key = getPileDataId(move.from)
+      const existing = sources.get(key)
+      if (existing) {
+        existing.moveCount++
+      } else {
+        sources.set(key, { location: move.from, moveCount: 1 })
+      }
+    }
+
+    return Array.from(sources.values())
+  }, [showHints, gameState, animation])
+
+  const hasMovesFrom = useCallback(
+    (location: PileLocation) => {
+      if (!showHints) return false
+      const key = getPileDataId(location)
+      return sourcesWithMoves.some(s => getPileDataId(s.location) === key)
+    },
+    [showHints, sourcesWithMoves]
+  )
 
   const handleNewGame = useCallback(() => {
     setGameState(initializeGame())
@@ -232,6 +261,8 @@ function App() {
         onNewGame={handleNewGame}
         onUndo={handleUndo}
         canUndo={stateHistory.length > 0 && !animation}
+        showHints={showHints}
+        onToggleHints={() => setShowHints((h) => !h)}
       />
       <GameBoard
         gameState={gameState}
@@ -242,6 +273,7 @@ function App() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDrop={handleDrop}
+        hasMovesFrom={hasMovesFrom}
       />
       <HistorySheet history={gameState.history} />
       {animation && (
