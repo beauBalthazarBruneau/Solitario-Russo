@@ -8,10 +8,13 @@ interface PileProps {
   label?: string
   showCount?: boolean
   faceDown?: boolean
-  spread?: boolean
   onClick: (location: PileLocation) => void
   isSelected: (location: PileLocation) => boolean
   isValidTarget: (location: PileLocation) => boolean
+  canDrag?: boolean
+  onDragStart?: (location: PileLocation) => void
+  onDragEnd?: () => void
+  onDrop?: (location: PileLocation) => void
 }
 
 export function Pile({
@@ -20,10 +23,13 @@ export function Pile({
   label,
   showCount = false,
   faceDown = false,
-  spread = false,
   onClick,
   isSelected,
   isValidTarget,
+  canDrag = false,
+  onDragStart,
+  onDragEnd,
+  onDrop,
 }: PileProps) {
   const topCard = cards[cards.length - 1]
   const selected = isSelected(location)
@@ -31,48 +37,42 @@ export function Pile({
 
   const handleClick = () => onClick(location)
 
-  if (spread && cards.length > 0) {
-    // Show stacked cards with slight offset (for tableau piles)
-    return (
-      <div className="pile pile--spread">
-        {label && <div className="pile__label">{label}</div>}
-        <div className="pile__cards">
-          {cards.map((card, index) => (
-            <div
-              key={`${card.suit}-${card.rank}-${card.deck}`}
-              className="pile__card"
-              style={{ '--card-index': index } as React.CSSProperties}
-            >
-              <Card
-                card={card}
-                faceDown={faceDown && index < cards.length - 1}
-                onClick={handleClick}
-                selected={selected && index === cards.length - 1}
-                validTarget={validTarget && index === cards.length - 1}
-              />
-            </div>
-          ))}
-          {cards.length === 0 && (
-            <Card
-              card={null}
-              onClick={handleClick}
-              validTarget={validTarget}
-            />
-          )}
-        </div>
-      </div>
-    )
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move'
+    onDragStart?.(location)
+  }
+
+  const handleDragEnd = () => {
+    onDragEnd?.()
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (validTarget) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    onDrop?.(location)
   }
 
   return (
     <div className="pile">
       {label && <div className="pile__label">{label}</div>}
-      <div className="pile__stack" onClick={handleClick}>
+      <div className="pile__stack">
         <Card
           card={topCard ?? null}
           faceDown={faceDown && cards.length > 0}
+          onClick={handleClick}
           selected={selected}
           validTarget={validTarget}
+          draggable={canDrag && !faceDown && cards.length > 0}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
         />
         {showCount && cards.length > 1 && (
           <div className="pile__count">{cards.length}</div>

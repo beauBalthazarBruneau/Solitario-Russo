@@ -31,6 +31,9 @@ export interface GameState {
   turnPhase: 'playing' | 'must-draw' | 'ended'
   moveCount: number
   winner: Player | null
+  seed: number // Random seed used to create this game (for replay/AI training)
+  history: string[] // Move history in notation format
+  drawnCard: Card | null // Card just drawn from hand that can be played (null when not applicable)
 }
 
 export interface Move {

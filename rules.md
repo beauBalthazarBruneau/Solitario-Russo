@@ -46,32 +46,35 @@ If stuck with no hand/waste, turn passes to opponent.
 - Cards on foundations are **locked** (cannot be moved off)
 - Foundation plays are **optional** (not mandatory)
 
-### Your Own Tableau (4 piles)
+### All Tableau Piles (8 total - 4 per player)
 
+- Players can move cards FROM and TO **any** tableau pile
 - Build **DOWN** in **ALTERNATING colors**
 - Example: 8♠ (black) → 7♥ (red) → 6♣ (black)
 - **Empty pile:** Can place **ANY card**
 - **Only top card** can be moved (no stack moves)
 
-### Opponent's Tableau (4 piles)
+### Opponent's Waste & Reserve (attack)
 
-- Build **UP or DOWN** by **SAME SUIT only**
-- Example: 7♠ → 6♠ or 8♠
-- This is how you "attack" - blocking their piles
-- **Empty pile:** Can place **ANY card** (aggressive blocking)
+- You can play cards onto opponent's **waste** or **reserve** pile
+- Rule: **SAME SUIT**, one rank **HIGHER or LOWER**
+- Example: If opponent's waste has 8♠, you can play 7♠ or 9♠
+- **Cannot play on empty** waste/reserve
+- This is how you "attack" - dumping cards on them!
 
 ---
 
 ## Where You Can Play FROM
 
-| Source | → Foundation | → Own Tableau | → Opponent Tableau |
-|--------|-------------|---------------|-------------------|
-| Reserve (top) | ✓ | ✓ | ✓ |
-| Waste (top) | ✓ | ✓ | ✓ |
-| Own Tableau (top) | ✓ | ✓ (other pile) | ✓ |
+| Source | → Foundation | → Any Tableau | → Opponent Waste/Reserve |
+|--------|-------------|---------------|--------------------------|
+| Reserve (top) | ✓ | ✓ | ✓ (same suit ±1) |
+| Just-drawn card | ✓ | ✓ | ✓ (same suit ±1) |
+| Any Tableau (top) | ✓ | ✓ (other pile) | ✓ (same suit ±1) |
 | Hand | ✗ | ✗ | ✗ |
+| Waste (old cards) | ✗ | ✗ | ✗ |
 
-**Hand cards** can only be drawn to waste (see below).
+**Hand cards** can only be drawn (see below). Once drawn, if playable, you must play the card immediately.
 
 ---
 
@@ -108,10 +111,10 @@ Your tableau cards don't matter - only the three personal piles.
 | Rule | Decision |
 |------|----------|
 | Foundation plays | Optional (not mandatory) |
-| Own tableau building | Down, alternating colors |
-| Opponent tableau building | Up OR down, same suit |
-| Empty own tableau | Any card |
-| Empty opponent tableau | Any card |
+| All tableau building | Down, alternating colors |
+| Empty tableau | Any card |
+| Play from any tableau | Yes (own or opponent's) |
+| Attack opponent waste/reserve | Same suit, ±1 rank |
 | Stack moves | No (top card only) |
 | Draw mechanic | Draw → play if able → continue; else turn ends |
 | Multiple draws per turn | Yes, if each drawn card is played |

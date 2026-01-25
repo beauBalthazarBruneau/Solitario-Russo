@@ -33,22 +33,9 @@
 }
 
 .card--face-up {
-  background: white;
-  border: 1px solid #ccc;
+  background: transparent;
   box-shadow: var(--card-shadow);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 4px;
-  position: relative;
-}
-
-.card--red {
-  color: #d32f2f;
-}
-
-.card--black {
-  color: #212121;
+  overflow: hidden;
 }
 
 .card--selected {
@@ -65,33 +52,9 @@
   border-color: #4caf50;
 }
 
-.card__corner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-}
-
-.card__corner--bottom {
-  transform: rotate(180deg);
-}
-
-.card__rank {
-  font-size: calc(var(--card-width) * 0.22);
-  font-weight: bold;
-}
-
-.card__suit {
-  font-size: calc(var(--card-width) * 0.18);
-}
-
-.card__center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.card__suit--large {
-  font-size: calc(var(--card-width) * 0.4);
+.card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
 }

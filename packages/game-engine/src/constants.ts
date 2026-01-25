@@ -8,6 +8,16 @@ export const TABLEAU_COUNT = 4
 export const FOUNDATION_COUNT = 8 // 4 suits x 2 decks
 export const MAX_MOVES = 1000
 
+// Foundation suit by row index (0-3): hearts, diamonds, clubs, spades
+// Foundations 0-3 are column 1, foundations 4-7 are column 2
+// Both columns have the same suit per row
+export const FOUNDATION_SUITS: readonly Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'] as const
+
+export function getFoundationSuit(foundationIndex: number): Suit {
+  // Index 0,4 = hearts; 1,5 = diamonds; 2,6 = clubs; 3,7 = spades
+  return FOUNDATION_SUITS[foundationIndex % 4] ?? 'hearts'
+}
+
 export const SUIT_COLORS: Record<Suit, Color> = {
   hearts: 'red',
   diamonds: 'red',

@@ -1,0 +1,30 @@
+.tableau-pile {
+  position: relative;
+  height: var(--card-height);
+  width: var(--card-width); /* Fixed width - cards overflow */
+}
+
+.tableau-pile__card {
+  position: absolute;
+  top: 0;
+}
+
+/* Fan left - newer cards offset to the left, oldest stays in place */
+.tableau-pile--left .tableau-pile__card {
+  right: calc(var(--index, 0) * 16px);
+}
+
+/* Fan right - newer cards offset to the right, oldest stays in place */
+.tableau-pile--right .tableau-pile__card {
+  left: calc(var(--index, 0) * 16px);
+}
+
+@media (min-width: 768px) {
+  .tableau-pile--left .tableau-pile__card {
+    right: calc(var(--index, 0) * 20px);
+  }
+
+  .tableau-pile--right .tableau-pile__card {
+    left: calc(var(--index, 0) * 20px);
+  }
+}

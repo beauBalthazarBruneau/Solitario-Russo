@@ -1,5 +1,5 @@
 import type { Card, GameState, Move, MoveResult, Player, PileLocation } from './types.js'
-import { isOppositeColor } from './constants.js'
+import { isOppositeColor, getFoundationSuit } from './constants.js'
 
 /**
  * Gets the top card from a pile (last element), or undefined if empty
@@ -10,9 +10,16 @@ export function getTopCard(pile: Card[]): Card | undefined {
 
 /**
  * Checks if a card can be played on a foundation pile
- * Foundations build up by suit: A-2-3-4-5-6-7-8-9-10-J-Q-K
+ * Foundations are suit-specific and build up: A-2-3-4-5-6-7-8-9-10-J-Q-K
+ * Each foundation index corresponds to a specific suit
  */
-export function canPlayOnFoundation(card: Card, pile: Card[]): boolean {
+export function canPlayOnFoundation(card: Card, pile: Card[], foundationIndex: number): boolean {
+  // Check if card matches the designated suit for this foundation
+  const requiredSuit = getFoundationSuit(foundationIndex)
+  if (card.suit !== requiredSuit) {
+    return false
+  }
+
   if (pile.length === 0) {
     // Only Aces can start a foundation
     return card.rank === 1
@@ -26,12 +33,13 @@ export function canPlayOnFoundation(card: Card, pile: Card[]): boolean {
 }
 
 /**
- * Checks if a card can be played on own tableau pile
- * Own tableau: build DOWN in ALTERNATING colors
+ * Checks if a card can be played on ANY tableau pile
+ * All tableaus: build DOWN in ALTERNATING colors
+ * Empty tableau: any card
  */
-export function canPlayOnOwnTableau(card: Card, pile: Card[]): boolean {
+export function canPlayOnTableau(card: Card, pile: Card[]): boolean {
   if (pile.length === 0) {
-    // Any card can go on empty own tableau
+    // Any card can go on empty tableau
     return true
   }
 
@@ -42,20 +50,25 @@ export function canPlayOnOwnTableau(card: Card, pile: Card[]): boolean {
   return isOppositeColor(card.suit, topCard.suit) && card.rank === topCard.rank - 1
 }
 
+// Legacy exports for backwards compatibility
+export const canPlayOnOwnTableau = canPlayOnTableau
+export const canPlayOnOpponentTableau = canPlayOnTableau
+
 /**
- * Checks if a card can be played on opponent's tableau pile
- * Opponent tableau: build UP or DOWN by SAME SUIT only
+ * Checks if a card can be played on opponent's waste or reserve
+ * Attack rule: same suit, one rank higher or lower
+ * Cannot play on empty pile
  */
-export function canPlayOnOpponentTableau(card: Card, pile: Card[]): boolean {
+export function canPlayOnOpponentPile(card: Card, pile: Card[]): boolean {
   if (pile.length === 0) {
-    // Any card can go on empty opponent tableau (aggressive blocking)
-    return true
+    // Cannot play on empty opponent waste/reserve
+    return false
   }
 
   const topCard = getTopCard(pile)
-  if (!topCard) return true
+  if (!topCard) return false
 
-  // Must be same suit and either one rank higher or lower
+  // Must be same suit and adjacent rank (±1)
   return (
     card.suit === topCard.suit &&
     (card.rank === topCard.rank + 1 || card.rank === topCard.rank - 1)
@@ -114,14 +127,14 @@ export function getValidMoves(state: GameState): Move[] {
   const playerState = getPlayerState(state, currentPlayer)
   const opponentState = getPlayerState(state, opponent)
 
-  // Helper to add a move if valid
+  // Helper to add moves for a card from a source location
   const tryAddMove = (from: PileLocation, card: Card | undefined) => {
     if (!card) return
 
     // Try foundations (8 piles)
     for (let i = 0; i < state.foundations.length; i++) {
       const pile = state.foundations[i]
-      if (pile && canPlayOnFoundation(card, pile)) {
+      if (pile && canPlayOnFoundation(card, pile, i)) {
         moves.push({
           from,
           to: { type: 'foundation', index: i },
@@ -130,14 +143,15 @@ export function getValidMoves(state: GameState): Move[] {
       }
     }
 
-    // Try own tableau (4 piles)
+    // Try all tableau piles (own + opponent's)
+    // Own tableau (4 piles)
     for (let i = 0; i < playerState.tableau.length; i++) {
       const pile = playerState.tableau[i]
       // Can't move to same pile
       if (from.type === 'tableau' && from.owner === currentPlayer && from.index === i) {
         continue
       }
-      if (pile && canPlayOnOwnTableau(card, pile)) {
+      if (pile && canPlayOnTableau(card, pile)) {
         moves.push({
           from,
           to: { type: 'tableau', owner: currentPlayer, index: i },
@@ -146,16 +160,38 @@ export function getValidMoves(state: GameState): Move[] {
       }
     }
 
-    // Try opponent tableau (4 piles)
+    // Opponent tableau (4 piles)
     for (let i = 0; i < opponentState.tableau.length; i++) {
       const pile = opponentState.tableau[i]
-      if (pile && canPlayOnOpponentTableau(card, pile)) {
+      // Can't move to same pile
+      if (from.type === 'tableau' && from.owner === opponent && from.index === i) {
+        continue
+      }
+      if (pile && canPlayOnTableau(card, pile)) {
         moves.push({
           from,
           to: { type: 'tableau', owner: opponent, index: i },
           card,
         })
       }
+    }
+
+    // Try opponent's waste (attack - same suit, ±1 rank)
+    if (canPlayOnOpponentPile(card, opponentState.waste)) {
+      moves.push({
+        from,
+        to: { type: 'waste', owner: opponent },
+        card,
+      })
+    }
+
+    // Try opponent's reserve (attack - same suit, ±1 rank)
+    if (canPlayOnOpponentPile(card, opponentState.reserve)) {
+      moves.push({
+        from,
+        to: { type: 'reserve', owner: opponent },
+        card,
+      })
     }
   }
 
@@ -165,18 +201,27 @@ export function getValidMoves(state: GameState): Move[] {
     tryAddMove({ type: 'reserve', owner: currentPlayer }, reserveCard)
   }
 
-  // Can play from waste (top card)
-  const wasteCard = getTopCard(playerState.waste)
-  if (wasteCard) {
-    tryAddMove({ type: 'waste', owner: currentPlayer }, wasteCard)
+  // Can play the just-drawn card (if any)
+  // Note: drawnCard is set when a playable card is drawn from hand
+  // The card is physically in waste but tracked separately
+  if (state.drawnCard) {
+    tryAddMove({ type: 'waste', owner: currentPlayer }, state.drawnCard)
   }
 
-  // Can play from own tableau (top cards)
+  // Can play from ANY tableau (own + opponent's top cards)
   for (let i = 0; i < playerState.tableau.length; i++) {
     const pile = playerState.tableau[i]
     const tableauCard = pile ? getTopCard(pile) : undefined
     if (tableauCard) {
       tryAddMove({ type: 'tableau', owner: currentPlayer, index: i }, tableauCard)
+    }
+  }
+
+  for (let i = 0; i < opponentState.tableau.length; i++) {
+    const pile = opponentState.tableau[i]
+    const tableauCard = pile ? getTopCard(pile) : undefined
+    if (tableauCard) {
+      tryAddMove({ type: 'tableau', owner: opponent, index: i }, tableauCard)
     }
   }
 

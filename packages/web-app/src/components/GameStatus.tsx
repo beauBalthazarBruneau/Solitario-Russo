@@ -4,9 +4,11 @@ import './GameStatus.css'
 interface GameStatusProps {
   gameState: GameState
   onNewGame: () => void
+  onUndo: () => void
+  canUndo: boolean
 }
 
-export function GameStatus({ gameState, onNewGame }: GameStatusProps) {
+export function GameStatus({ gameState, onNewGame, onUndo, canUndo }: GameStatusProps) {
   const { currentTurn, winner, moveCount, player1, player2 } = gameState
 
   const p1CardsLeft = player1.reserve.length + player1.hand.length + player1.waste.length
@@ -36,6 +38,13 @@ export function GameStatus({ gameState, onNewGame }: GameStatusProps) {
       </div>
       <button className="game-status__button" onClick={onNewGame}>
         New Game
+      </button>
+      <button
+        className="game-status__button game-status__button--undo"
+        onClick={onUndo}
+        disabled={!canUndo}
+      >
+        Undo
       </button>
     </div>
   )

@@ -101,14 +101,22 @@ describe('Clone State', () => {
 })
 
 describe('Foundation Play Validation', () => {
-  it('should allow Ace on empty foundation', () => {
+  // Foundation indices by suit: 0,4=hearts, 1,5=diamonds, 2,6=clubs, 3,7=spades
+
+  it('should allow Ace on empty foundation of matching suit', () => {
     const ace: Card = { suit: 'hearts', rank: 1, deck: 'player1' }
-    expect(canPlayOnFoundation(ace, [])).toBe(true)
+    expect(canPlayOnFoundation(ace, [], 0)).toBe(true) // hearts foundation
+    expect(canPlayOnFoundation(ace, [], 4)).toBe(true) // also hearts foundation
+  })
+
+  it('should not allow Ace on foundation of wrong suit', () => {
+    const ace: Card = { suit: 'hearts', rank: 1, deck: 'player1' }
+    expect(canPlayOnFoundation(ace, [], 3)).toBe(false) // spades foundation
   })
 
   it('should not allow non-Ace on empty foundation', () => {
     const two: Card = { suit: 'hearts', rank: 2, deck: 'player1' }
-    expect(canPlayOnFoundation(two, [])).toBe(false)
+    expect(canPlayOnFoundation(two, [], 0)).toBe(false) // hearts foundation
   })
 
   it('should allow building up by suit', () => {
@@ -116,22 +124,23 @@ describe('Foundation Play Validation', () => {
     const two: Card = { suit: 'spades', rank: 2, deck: 'player1' }
     const three: Card = { suit: 'spades', rank: 3, deck: 'player1' }
 
-    expect(canPlayOnFoundation(two, [ace])).toBe(true)
-    expect(canPlayOnFoundation(three, [ace, two])).toBe(true)
+    expect(canPlayOnFoundation(two, [ace], 3)).toBe(true) // spades foundation
+    expect(canPlayOnFoundation(three, [ace, two], 3)).toBe(true)
   })
 
   it('should not allow wrong suit on foundation', () => {
     const aceHearts: Card = { suit: 'hearts', rank: 1, deck: 'player1' }
     const twoSpades: Card = { suit: 'spades', rank: 2, deck: 'player1' }
 
-    expect(canPlayOnFoundation(twoSpades, [aceHearts])).toBe(false)
+    // Can't play spades on a hearts foundation
+    expect(canPlayOnFoundation(twoSpades, [aceHearts], 0)).toBe(false)
   })
 
   it('should not allow skipping ranks', () => {
     const ace: Card = { suit: 'hearts', rank: 1, deck: 'player1' }
     const three: Card = { suit: 'hearts', rank: 3, deck: 'player1' }
 
-    expect(canPlayOnFoundation(three, [ace])).toBe(false)
+    expect(canPlayOnFoundation(three, [ace], 0)).toBe(false) // hearts foundation
   })
 })
 
@@ -164,26 +173,27 @@ describe('Own Tableau Play Validation', () => {
 })
 
 describe('Opponent Tableau Play Validation', () => {
+  // Note: All tableaus now use the same rules - down, alternating colors
   it('should allow any card on empty opponent tableau', () => {
     const king: Card = { suit: 'hearts', rank: 13, deck: 'player1' }
     expect(canPlayOnOpponentTableau(king, [])).toBe(true)
   })
 
-  it('should allow building up by same suit', () => {
-    const sevenSpades: Card = { suit: 'spades', rank: 7, deck: 'player1' }
+  it('should allow building down with alternating colors', () => {
     const eightSpades: Card = { suit: 'spades', rank: 8, deck: 'player1' }
+    const sevenHearts: Card = { suit: 'hearts', rank: 7, deck: 'player1' }
 
-    expect(canPlayOnOpponentTableau(eightSpades, [sevenSpades])).toBe(true)
+    expect(canPlayOnOpponentTableau(sevenHearts, [eightSpades])).toBe(true)
   })
 
-  it('should allow building down by same suit', () => {
-    const sevenSpades: Card = { suit: 'spades', rank: 7, deck: 'player1' }
-    const sixSpades: Card = { suit: 'spades', rank: 6, deck: 'player1' }
+  it('should not allow same color', () => {
+    const eightSpades: Card = { suit: 'spades', rank: 8, deck: 'player1' }
+    const sevenClubs: Card = { suit: 'clubs', rank: 7, deck: 'player1' }
 
-    expect(canPlayOnOpponentTableau(sixSpades, [sevenSpades])).toBe(true)
+    expect(canPlayOnOpponentTableau(sevenClubs, [eightSpades])).toBe(false)
   })
 
-  it('should not allow different suit', () => {
+  it('should not allow building up', () => {
     const sevenSpades: Card = { suit: 'spades', rank: 7, deck: 'player1' }
     const eightHearts: Card = { suit: 'hearts', rank: 8, deck: 'player1' }
 

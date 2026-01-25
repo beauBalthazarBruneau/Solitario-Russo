@@ -44,6 +44,21 @@ export {
   getOpponent,
   getTopCard,
   canPlayOnFoundation,
+  canPlayOnTableau,
   canPlayOnOwnTableau,
   canPlayOnOpponentTableau,
+  canPlayOnOpponentPile,
 } from './engine.js'
+
+// Notation
+export {
+  cardToNotation,
+  notationToCard,
+  pileToNotation,
+  notationToPile,
+  moveToNotation,
+  drawToNotation,
+  notationToMove,
+  isDrawNotation,
+  formatGameLog,
+} from './notation.js'

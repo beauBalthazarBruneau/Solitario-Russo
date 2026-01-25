@@ -31,28 +31,8 @@
   text-align: center;
 }
 
-.pile--spread {
-  min-height: calc(var(--card-height) + 60px);
-}
-
-.pile--spread .pile__cards {
-  position: relative;
-  width: var(--card-width);
-  min-height: var(--card-height);
-}
-
-.pile--spread .pile__card {
-  position: absolute;
-  top: calc(var(--card-index) * 16px);
-  left: 0;
-}
-
 @media (min-width: 768px) {
   .pile__label {
     font-size: 11px;
-  }
-
-  .pile--spread .pile__card {
-    top: calc(var(--card-index) * 20px);
   }
 }

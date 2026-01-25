@@ -8,10 +8,13 @@ import {
   getOpponent,
   getTopCard,
   canPlayOnFoundation,
+  canPlayOnTableau,
   canPlayOnOwnTableau,
   canPlayOnOpponentTableau,
+  canPlayOnOpponentPile,
   canDrawFromHand,
 } from './validation.js'
+import { moveToNotation, drawToNotation } from './notation.js'
 
 /**
  * Deep clones a game state for immutability
@@ -25,6 +28,9 @@ export function cloneState(state: GameState): GameState {
     turnPhase: state.turnPhase,
     moveCount: state.moveCount,
     winner: state.winner,
+    seed: state.seed,
+    history: [...state.history],
+    drawnCard: state.drawnCard ? { ...state.drawnCard } : null,
   }
 }
 
@@ -39,10 +45,12 @@ function clonePlayerState(state: PlayerState): PlayerState {
 
 /**
  * Initializes a new game
- * @param seed - Optional seed for reproducible games
+ * @param seed - Optional seed for reproducible games (generates random seed if not provided)
  */
 export function initializeGame(seed?: number): GameState {
-  const rng = seed !== undefined ? createSeededRng(seed) : Math.random
+  // Generate a random seed if not provided
+  const gameSeed = seed ?? Math.floor(Math.random() * 2147483647)
+  const rng = createSeededRng(gameSeed)
 
   // Create and shuffle both decks
   const deck1 = shuffle(createDeck('player1'), rng)
@@ -66,6 +74,9 @@ export function initializeGame(seed?: number): GameState {
     turnPhase: 'playing',
     moveCount: 0,
     winner: null,
+    seed: gameSeed,
+    history: [],
+    drawnCard: null,
   }
 }
 
@@ -118,6 +129,7 @@ export function switchTurn(state: GameState): GameState {
   const newState = cloneState(state)
   newState.currentTurn = getOpponent(state.currentTurn)
   newState.turnPhase = 'playing'
+  newState.drawnCard = null // Clear any drawn card when turn switches
   return newState
 }
 
@@ -147,7 +159,10 @@ export function applyMove(state: GameState, move: Move): MoveResult {
       removedCard = playerState.waste.pop()
       break
     case 'tableau': {
-      const pile = playerState.tableau[move.from.index ?? 0]
+      // Can move from any tableau (own or opponent's)
+      const fromOwner = move.from.owner
+      const fromState = fromOwner === currentPlayer ? playerState : opponentState
+      const pile = fromState.tableau[move.from.index ?? 0]
       if (pile) {
         removedCard = pile.pop()
       }
@@ -157,6 +172,11 @@ export function applyMove(state: GameState, move: Move): MoveResult {
 
   if (!removedCard) {
     return { valid: false, reason: 'No card at source' }
+  }
+
+  // Clear drawnCard if we just played the drawn card from waste
+  if (move.from.type === 'waste' && newState.drawnCard) {
+    newState.drawnCard = null
   }
 
   // Add card to destination
@@ -177,9 +197,26 @@ export function applyMove(state: GameState, move: Move): MoveResult {
       }
       break
     }
+    case 'waste': {
+      // Playing on opponent's waste (attack)
+      const owner = move.to.owner
+      const targetState = owner === currentPlayer ? playerState : opponentState
+      targetState.waste.push(removedCard)
+      break
+    }
+    case 'reserve': {
+      // Playing on opponent's reserve (attack)
+      const owner = move.to.owner
+      const targetState = owner === currentPlayer ? playerState : opponentState
+      targetState.reserve.push(removedCard)
+      break
+    }
   }
 
   newState.moveCount++
+
+  // Record move in history
+  newState.history.push(moveToNotation(move))
 
   // Check win condition
   const winner = checkWinCondition(newState)
@@ -226,6 +263,9 @@ export function drawFromHand(state: GameState): MoveResult {
   playerState.waste.push(drawnCard)
   newState.moveCount++
 
+  // Record draw in history
+  newState.history.push(drawToNotation(newState.currentTurn))
+
   // Check if drawn card can be played
   const movesWithDrawnCard = getMovesForCard(newState, drawnCard, {
     type: 'waste',
@@ -236,8 +276,12 @@ export function drawFromHand(state: GameState): MoveResult {
   if (movesWithDrawnCard.length === 0) {
     // Card cannot be played, turn ends
     turnEnded = true
+    newState.drawnCard = null
     newState.currentTurn = getOpponent(state.currentTurn)
     newState.turnPhase = 'playing'
+  } else {
+    // Card can be played - mark it as the drawn card that must be played
+    newState.drawnCard = drawnCard
   }
 
   // Check win condition
@@ -273,7 +317,7 @@ function getMovesForCard(state: GameState, card: Card, from: Move['from']): Move
   // Try foundations
   for (let i = 0; i < state.foundations.length; i++) {
     const pile = state.foundations[i]
-    if (pile && canPlayOnFoundation(card, pile)) {
+    if (pile && canPlayOnFoundation(card, pile, i)) {
       moves.push({
         from,
         to: { type: 'foundation', index: i },
@@ -306,6 +350,24 @@ function getMovesForCard(state: GameState, card: Card, from: Move['from']): Move
     }
   }
 
+  // Try opponent's waste (attack)
+  if (canPlayOnOpponentPile(card, opponentState.waste)) {
+    moves.push({
+      from,
+      to: { type: 'waste', owner: opponent },
+      card,
+    })
+  }
+
+  // Try opponent's reserve (attack)
+  if (canPlayOnOpponentPile(card, opponentState.reserve)) {
+    moves.push({
+      from,
+      to: { type: 'reserve', owner: opponent },
+      card,
+    })
+  }
+
   return moves
 }
 
@@ -318,6 +380,8 @@ export {
   getOpponent,
   getTopCard,
   canPlayOnFoundation,
+  canPlayOnTableau,
   canPlayOnOwnTableau,
   canPlayOnOpponentTableau,
+  canPlayOnOpponentPile,
 }

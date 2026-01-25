@@ -58,11 +58,25 @@
   color: white;
   font-weight: bold;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, opacity 0.2s ease;
 }
 
-.game-status__button:hover {
+.game-status__button:hover:not(:disabled) {
   background: #45a049;
+}
+
+.game-status__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-status__button--undo {
+  margin-left: auto;
+  background: #666;
+}
+
+.game-status__button--undo:hover:not(:disabled) {
+  background: #555;
 }
 
 @media (min-width: 768px) {

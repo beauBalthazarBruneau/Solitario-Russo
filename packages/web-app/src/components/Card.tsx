@@ -1,4 +1,4 @@
-import type { Card as CardType } from '@russian-bank/game-engine'
+import type { Card as CardType, Suit, Rank } from '@russian-bank/game-engine'
 import './Card.css'
 
 interface CardProps {
@@ -7,28 +7,61 @@ interface CardProps {
   onClick?: () => void
   selected?: boolean
   validTarget?: boolean
+  draggable?: boolean
+  onDragStart?: (e: React.DragEvent) => void
+  onDragEnd?: (e: React.DragEvent) => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
 }
 
-const SUIT_SYMBOLS: Record<string, string> = {
-  hearts: '\u2665',
-  diamonds: '\u2666',
-  clubs: '\u2663',
-  spades: '\u2660',
+const SUIT_CODE: Record<Suit, string> = {
+  hearts: 'H',
+  diamonds: 'D',
+  clubs: 'C',
+  spades: 'S',
 }
 
-const RANK_DISPLAY: Record<number, string> = {
+const RANK_CODE: Record<Rank, string> = {
   1: 'A',
+  2: '2',
+  3: '3',
+  4: '4',
+  5: '5',
+  6: '6',
+  7: '7',
+  8: '8',
+  9: '9',
+  10: '10',
   11: 'J',
   12: 'Q',
   13: 'K',
 }
 
-export function Card({ card, faceDown = false, onClick, selected, validTarget }: CardProps) {
+function getCardImagePath(card: CardType): string {
+  const rank = RANK_CODE[card.rank]
+  const suit = SUIT_CODE[card.suit]
+  return `/cards/${rank}${suit}.svg`
+}
+
+export function Card({
+  card,
+  faceDown = false,
+  onClick,
+  selected,
+  validTarget,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+}: CardProps) {
   if (!card) {
     return (
       <div
         className={`card card--empty ${validTarget ? 'card--valid-target' : ''}`}
         onClick={onClick}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
       />
     )
   }
@@ -38,30 +71,28 @@ export function Card({ card, faceDown = false, onClick, selected, validTarget }:
       <div
         className={`card card--face-down card--${card.deck}`}
         onClick={onClick}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
       />
     )
   }
 
-  const isRed = card.suit === 'hearts' || card.suit === 'diamonds'
-  const rankDisplay = RANK_DISPLAY[card.rank] ?? card.rank.toString()
-  const suitSymbol = SUIT_SYMBOLS[card.suit]
-
   return (
     <div
-      className={`card card--face-up ${isRed ? 'card--red' : 'card--black'} ${selected ? 'card--selected' : ''} ${validTarget ? 'card--valid-target' : ''}`}
+      className={`card card--face-up ${selected ? 'card--selected' : ''} ${validTarget ? 'card--valid-target' : ''}`}
       onClick={onClick}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
     >
-      <div className="card__corner card__corner--top">
-        <span className="card__rank">{rankDisplay}</span>
-        <span className="card__suit">{suitSymbol}</span>
-      </div>
-      <div className="card__center">
-        <span className="card__suit card__suit--large">{suitSymbol}</span>
-      </div>
-      <div className="card__corner card__corner--bottom">
-        <span className="card__rank">{rankDisplay}</span>
-        <span className="card__suit">{suitSymbol}</span>
-      </div>
+      <img
+        src={getCardImagePath(card)}
+        alt={`${RANK_CODE[card.rank]} of ${card.suit}`}
+        className="card__image"
+        draggable={false}
+      />
     </div>
   )
 }

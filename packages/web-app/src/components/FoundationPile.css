@@ -1,0 +1,31 @@
+.foundation-pile {
+  width: var(--card-width);
+  height: var(--card-height);
+}
+
+.foundation-pile--empty {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: var(--card-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.foundation-pile--empty:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.foundation-pile--valid-target {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: #4caf50;
+}
+
+.foundation-pile__suit-icon {
+  width: 40%;
+  height: 40%;
+  opacity: 0.4;
+  pointer-events: none;
+}
