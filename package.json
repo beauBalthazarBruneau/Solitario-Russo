@@ -10,7 +10,7 @@
     "train:weekend": "npm run train:weekend --workspace=@russian-bank/ai-training",
     "benchmark": "npm run benchmark --workspace=@russian-bank/ai-training",
     "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build -w @russian-bank/game-engine && npm run build -w @russian-bank/ai-training && npm run build -w @russian-bank/web-app"
   },
   "devDependencies": {
     "typescript": "^5.3.3"
