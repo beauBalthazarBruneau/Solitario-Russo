@@ -12,36 +12,129 @@ import {
  * Score weights for different move types.
  * Higher scores = more desirable moves.
  */
-const SCORE_WEIGHTS = {
+export interface ScoreWeights {
   // Playing to foundation is always good - removes cards permanently
-  TO_FOUNDATION: 100,
+  TO_FOUNDATION: number
 
   // Attacking opponent blocks their progress
-  ATTACK_RESERVE: 80,  // Blocking their main card source is very valuable
-  ATTACK_WASTE: 70,
+  ATTACK_RESERVE: number  // Blocking their main card source is very valuable
+  ATTACK_WASTE: number
 
   // Playing from reserve/waste depletes our piles (closer to winning)
-  FROM_RESERVE: 50,
-  FROM_WASTE: 30,
+  FROM_RESERVE: number
+  FROM_WASTE: number
 
   // Playing from tableau is less valuable (doesn't deplete main piles)
-  FROM_TABLEAU: 10,
+  FROM_TABLEAU: number
 
   // Building on tableaus
-  TO_OWN_TABLEAU: 5,
-  TO_OPPONENT_TABLEAU: 15, // Can be useful to dump cards
+  TO_OWN_TABLEAU: number
+  TO_OPPONENT_TABLEAU: number // Can be useful to dump cards
 
   // Bonuses
-  EMPTIES_RESERVE: 200,  // Huge bonus for emptying reserve
-  CREATES_EMPTY_TABLEAU: -10, // Slight penalty - empty tableaus less useful in this game
-  PLAYS_ACE: 20,  // Aces to foundation open up plays
-  PLAYS_TWO: 15,  // Twos follow aces
+  EMPTIES_RESERVE: number  // Huge bonus for emptying reserve
+  CREATES_EMPTY_TABLEAU: number // Slight penalty - empty tableaus less useful in this game
+  PLAYS_ACE: number  // Aces to foundation open up plays
+  PLAYS_TWO: number  // Twos follow aces
+}
+
+export const DEFAULT_WEIGHTS: ScoreWeights = {
+  TO_FOUNDATION: 50,  // Lowered from 100 - AI plays better with more flexibility
+  ATTACK_RESERVE: 40,  // Lowered from 80 - less aggressive attacking
+  ATTACK_WASTE: 18,  // Lowered from 70 -> 35 -> 18 - much less aggressive on waste
+  FROM_RESERVE: 50,
+  FROM_WASTE: 30,
+  FROM_TABLEAU: 5,  // Lowered from 10 - deprioritize tableau moves, focus on reserve/waste
+  TO_OWN_TABLEAU: 5,
+  TO_OPPONENT_TABLEAU: 15,
+  EMPTIES_RESERVE: 200,
+  CREATES_EMPTY_TABLEAU: -20,  // Lowered from -10 - avoid empty tableaus more
+  PLAYS_ACE: 10,  // Lowered from 20 - don't over-prioritize aces
+  PLAYS_TWO: 15,
+}
+
+/**
+ * Configuration for AI exploration behavior
+ */
+export interface AIConfig {
+  /** Base probability of picking a random move instead of the best (0-1). Default: 0.05 */
+  explorationRate: number
+  /** Penalty applied to tableau-to-tableau moves when they seem like shuffling. Default: 50 */
+  shufflePenalty: number
+  /** Number of recent moves to track for pattern detection. Default: 10 */
+  patternMemory: number
+  /** How many moves ahead to look for foundation plays. 0 = disabled. Default: 2 */
+  lookAheadDepth: number
+  /** Bonus per foundation move found in look-ahead. Default: 30 */
+  lookAheadFoundationBonus: number
+}
+
+export const DEFAULT_AI_CONFIG: AIConfig = {
+  explorationRate: 0.05,
+  shufflePenalty: 50,
+  patternMemory: 10,
+  lookAheadDepth: 2,
+  lookAheadFoundationBonus: 30,
 }
 
 interface ScoredMove {
   move: Move
   score: number
   reasoning: string
+}
+
+/**
+ * Creates a key representing a move pattern (for detecting shuffling)
+ */
+function movePatternKey(move: Move): string {
+  return `${move.from.type}:${move.from.owner ?? ''}:${move.from.index ?? ''}->${move.to.type}:${move.to.owner ?? ''}:${move.to.index ?? ''}`
+}
+
+/**
+ * Checks if a move looks like tableau shuffling
+ */
+function isTableauShuffle(move: Move): boolean {
+  return move.from.type === 'tableau' && move.to.type === 'tableau'
+}
+
+/**
+ * Look ahead after a move to count how many foundation plays become available.
+ * Returns the number of foundation moves found within the look-ahead depth.
+ */
+function countFoundationMovesAhead(
+  state: GameState,
+  move: Move,
+  depth: number
+): number {
+  if (depth <= 0) return 0
+
+  // Simulate applying the move
+  const result = applyMove(state, move)
+  if (!result.valid || !result.newState) return 0
+
+  const newState = result.newState
+
+  // Get all valid moves in the new state
+  const nextMoves = getValidMoves(newState)
+
+  // Count foundation moves
+  let foundationMoves = 0
+  for (const nextMove of nextMoves) {
+    if (nextMove.to.type === 'foundation') {
+      foundationMoves++
+    }
+  }
+
+  // If we have more depth, recursively look ahead from the best non-foundation moves
+  if (depth > 1 && nextMoves.length > 0) {
+    // Just check the first few moves to avoid exponential blowup
+    const movesToCheck = nextMoves.slice(0, 3)
+    for (const nextMove of movesToCheck) {
+      foundationMoves += countFoundationMovesAhead(newState, nextMove, depth - 1)
+    }
+  }
+
+  return foundationMoves
 }
 
 /**
@@ -57,7 +150,7 @@ function cardPositionKey(cardSuit: string, cardRank: number, cardDeck: string, l
 /**
  * Scores a single move based on strategic value
  */
-function scoreMove(state: GameState, move: Move): ScoredMove {
+function scoreMove(state: GameState, move: Move, weights: ScoreWeights): ScoredMove {
   let score = 0
   const reasons: string[] = []
   const currentPlayer = state.currentTurn
@@ -65,48 +158,48 @@ function scoreMove(state: GameState, move: Move): ScoredMove {
 
   // Score based on destination
   if (move.to.type === 'foundation') {
-    score += SCORE_WEIGHTS.TO_FOUNDATION
+    score += weights.TO_FOUNDATION
     reasons.push('foundation')
 
     // Bonus for low cards (opens up more plays)
     if (move.card.rank === 1) {
-      score += SCORE_WEIGHTS.PLAYS_ACE
+      score += weights.PLAYS_ACE
       reasons.push('ace')
     } else if (move.card.rank === 2) {
-      score += SCORE_WEIGHTS.PLAYS_TWO
+      score += weights.PLAYS_TWO
       reasons.push('two')
     }
   } else if (move.to.type === 'reserve' && move.to.owner !== currentPlayer) {
-    score += SCORE_WEIGHTS.ATTACK_RESERVE
+    score += weights.ATTACK_RESERVE
     reasons.push('attack-reserve')
   } else if (move.to.type === 'waste' && move.to.owner !== currentPlayer) {
-    score += SCORE_WEIGHTS.ATTACK_WASTE
+    score += weights.ATTACK_WASTE
     reasons.push('attack-waste')
   } else if (move.to.type === 'tableau') {
     if (move.to.owner === currentPlayer) {
-      score += SCORE_WEIGHTS.TO_OWN_TABLEAU
+      score += weights.TO_OWN_TABLEAU
       reasons.push('own-tableau')
     } else {
-      score += SCORE_WEIGHTS.TO_OPPONENT_TABLEAU
+      score += weights.TO_OPPONENT_TABLEAU
       reasons.push('opponent-tableau')
     }
   }
 
   // Score based on source
   if (move.from.type === 'reserve') {
-    score += SCORE_WEIGHTS.FROM_RESERVE
+    score += weights.FROM_RESERVE
     reasons.push('from-reserve')
 
     // Huge bonus if this empties the reserve
     if (playerState.reserve.length === 1) {
-      score += SCORE_WEIGHTS.EMPTIES_RESERVE
+      score += weights.EMPTIES_RESERVE
       reasons.push('empties-reserve!')
     }
   } else if (move.from.type === 'waste') {
-    score += SCORE_WEIGHTS.FROM_WASTE
+    score += weights.FROM_WASTE
     reasons.push('from-waste')
   } else if (move.from.type === 'tableau') {
-    score += SCORE_WEIGHTS.FROM_TABLEAU
+    score += weights.FROM_TABLEAU
     reasons.push('from-tableau')
 
     // Check if this creates an empty tableau
@@ -115,7 +208,7 @@ function scoreMove(state: GameState, move: Move): ScoredMove {
       const fromState = getPlayerState(state, fromOwner)
       const pile = fromState.tableau[move.from.index ?? 0]
       if (pile && pile.length === 1) {
-        score += SCORE_WEIGHTS.CREATES_EMPTY_TABLEAU
+        score += weights.CREATES_EMPTY_TABLEAU
         reasons.push('empties-tableau')
       }
     }
@@ -132,7 +225,13 @@ function scoreMove(state: GameState, move: Move): ScoredMove {
  * Gets all valid moves scored and sorted by desirability,
  * filtering out moves that would create cycles (unless we must play a drawn card)
  */
-function getScoredMoves(state: GameState, seenPositions: Set<string>): ScoredMove[] {
+function getScoredMoves(
+  state: GameState,
+  seenPositions: Set<string>,
+  weights: ScoreWeights,
+  config: AIConfig,
+  recentMoves: string[]
+): ScoredMove[] {
   const moves = getValidMoves(state)
 
   // If there's a drawn card that must be played, don't filter by cycle detection
@@ -146,7 +245,31 @@ function getScoredMoves(state: GameState, seenPositions: Set<string>): ScoredMov
       })
     : moves
 
-  const scored = filteredMoves.map(move => scoreMove(state, move))
+  const scored = filteredMoves.map(move => {
+    const base = scoreMove(state, move, weights)
+
+    // Apply shuffle penalty if this looks like repeated tableau shuffling
+    if (isTableauShuffle(move)) {
+      const pattern = movePatternKey(move)
+      const patternCount = recentMoves.filter(p => p === pattern).length
+      if (patternCount > 0) {
+        base.score -= config.shufflePenalty * patternCount
+        base.reasoning += `, shuffle-penalty:${patternCount}`
+      }
+    }
+
+    // Look-ahead: bonus for moves that enable foundation plays
+    if (config.lookAheadDepth > 0 && move.to.type !== 'foundation') {
+      const futureFoundationMoves = countFoundationMovesAhead(state, move, config.lookAheadDepth)
+      if (futureFoundationMoves > 0) {
+        const bonus = futureFoundationMoves * config.lookAheadFoundationBonus
+        base.score += bonus
+        base.reasoning += `, look-ahead:+${futureFoundationMoves}f`
+      }
+    }
+
+    return base
+  })
 
   // Sort by score descending (best moves first)
   scored.sort((a, b) => b.score - a.score)
@@ -163,26 +286,46 @@ export interface AIDecision {
 /**
  * Simple heuristic AI that picks the highest-scoring valid move.
  * If no moves available, draws from hand.
+ * With exploration, occasionally picks a random move instead.
  */
-function getAIDecision(state: GameState, seenPositions: Set<string>): AIDecision {
+function getAIDecision(
+  state: GameState,
+  seenPositions: Set<string>,
+  weights: ScoreWeights,
+  config: AIConfig,
+  recentMoves: string[],
+  rng: () => number
+): AIDecision {
   // If game is over, no decision needed
   if (state.winner || state.turnPhase === 'ended') {
     return { type: 'draw', reasoning: 'game-over' }
   }
 
-  const scoredMoves = getScoredMoves(state, seenPositions)
-  const best = scoredMoves[0]
+  const scoredMoves = getScoredMoves(state, seenPositions, weights, config, recentMoves)
 
-  if (best) {
+  if (scoredMoves.length === 0) {
+    // No moves available, must draw
+    return { type: 'draw', reasoning: 'no-moves-available' }
+  }
+
+  // Exploration: occasionally pick a random move
+  if (rng() < config.explorationRate && scoredMoves.length > 1) {
+    const randomIndex = Math.floor(rng() * scoredMoves.length)
+    const chosen = scoredMoves[randomIndex]!
     return {
       type: 'move',
-      move: best.move,
-      reasoning: `${best.reasoning} (score: ${best.score})`,
+      move: chosen.move,
+      reasoning: `${chosen.reasoning} (score: ${chosen.score}, explored)`,
     }
   }
 
-  // No moves available, must draw
-  return { type: 'draw', reasoning: 'no-moves-available' }
+  // Pick the best move
+  const best = scoredMoves[0]!
+  return {
+    type: 'move',
+    move: best.move,
+    reasoning: `${best.reasoning} (score: ${best.score})`,
+  }
 }
 
 /**
@@ -219,16 +362,42 @@ export interface AITurnStep {
 }
 
 /**
+ * Simple seeded random number generator
+ */
+function createRng(seed: number): () => number {
+  let state = seed
+  return () => {
+    state = (state * 1103515245 + 12345) & 0x7fffffff
+    return state / 0x7fffffff
+  }
+}
+
+/**
  * Computes all moves for an AI turn upfront.
  * Returns an array of states and decisions that can be played back.
+ * @param initialState - The game state at the start of the turn
+ * @param weights - Optional score weights (defaults to DEFAULT_WEIGHTS)
+ * @param config - Optional AI behavior config (defaults to DEFAULT_AI_CONFIG)
+ * @param recentGameMoves - Optional recent moves from previous turns (for pattern detection across turns)
  */
-export function computeAITurn(initialState: GameState): AITurnStep[] {
+export function computeAITurn(
+  initialState: GameState,
+  weights: ScoreWeights = DEFAULT_WEIGHTS,
+  config: AIConfig = DEFAULT_AI_CONFIG,
+  recentGameMoves: string[] = []
+): AITurnStep[] {
   const steps: AITurnStep[] = []
   let state = initialState
   const aiPlayer = initialState.currentTurn
 
+  // Create RNG seeded from game state for reproducibility
+  const rng = createRng(state.seed + state.moveCount)
+
   // Track positions cards have been at this turn to prevent cycles
   const seenPositions = new Set<string>()
+
+  // Track recent moves for pattern detection (include moves from previous turns)
+  const recentMoves = [...recentGameMoves]
 
   // Record initial positions
   recordCardPositions(state, 'player1', seenPositions)
@@ -248,13 +417,21 @@ export function computeAITurn(initialState: GameState): AITurnStep[] {
       break
     }
 
-    const decision = getAIDecision(state, seenPositions)
+    const decision = getAIDecision(state, seenPositions, weights, config, recentMoves, rng)
 
     if (decision.type === 'move' && decision.move) {
       const result = applyMove(state, decision.move)
       if (result.valid && result.newState) {
         state = result.newState
         moveCount++
+
+        // Track this move pattern
+        const pattern = movePatternKey(decision.move)
+        recentMoves.push(pattern)
+        // Keep only recent moves based on config
+        while (recentMoves.length > config.patternMemory) {
+          recentMoves.shift()
+        }
 
         // Record new positions after the move
         recordCardPositions(state, 'player1', seenPositions)
@@ -308,8 +485,13 @@ export interface AITurnResult {
   turnEnded: boolean
 }
 
-export function playAITurn(initialState: GameState): AITurnResult {
-  const steps = computeAITurn(initialState)
+export function playAITurn(
+  initialState: GameState,
+  weights: ScoreWeights = DEFAULT_WEIGHTS,
+  config: AIConfig = DEFAULT_AI_CONFIG,
+  recentGameMoves: string[] = []
+): AITurnResult {
+  const steps = computeAITurn(initialState, weights, config, recentGameMoves)
   const lastStep = steps[steps.length - 1]
 
   return {
@@ -320,12 +502,16 @@ export function playAITurn(initialState: GameState): AITurnResult {
 }
 
 // Deprecated - use computeAITurn instead
-export function* getAIMoves(initialState: GameState): Generator<{
+export function* getAIMoves(
+  initialState: GameState,
+  weights: ScoreWeights = DEFAULT_WEIGHTS,
+  config: AIConfig = DEFAULT_AI_CONFIG
+): Generator<{
   state: GameState
   decision: AIDecision
   turnEnded: boolean
 }> {
-  const steps = computeAITurn(initialState)
+  const steps = computeAITurn(initialState, weights, config)
   const aiPlayer = initialState.currentTurn
 
   for (let i = 0; i < steps.length; i++) {

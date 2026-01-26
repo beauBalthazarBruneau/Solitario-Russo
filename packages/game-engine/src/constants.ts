@@ -6,7 +6,7 @@ export const RANKS: readonly Rank[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 export const RESERVE_SIZE = 12
 export const TABLEAU_COUNT = 4
 export const FOUNDATION_COUNT = 8 // 4 suits x 2 decks
-export const MAX_MOVES = 1000
+export const MAX_MOVES = 2000
 
 // Foundation suit by row index (0-3): hearts, diamonds, clubs, spades
 // Foundations 0-3 are column 1, foundations 4-7 are column 2
