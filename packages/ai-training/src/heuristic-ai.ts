@@ -43,6 +43,7 @@ export interface ScoreWeights {
   // Penalties for pointless moves
   POINTLESS_TABLEAU_SHUFFLE: number // Heavy penalty for moving single card between empty tableaus
   TABLEAU_MOVE_NO_BENEFIT: number   // Penalty for tableau-to-tableau that doesn't expose useful card
+  CREATES_USEFUL_EMPTY: number      // Bonus for emptying a tableau by moving to non-empty tableau
 }
 
 export const DEFAULT_WEIGHTS: ScoreWeights = {
@@ -60,6 +61,7 @@ export const DEFAULT_WEIGHTS: ScoreWeights = {
   PLAYS_TWO: 15,
   POINTLESS_TABLEAU_SHUFFLE: -200, // Heavy penalty for moving single card to empty tableau
   TABLEAU_MOVE_NO_BENEFIT: -50,    // Penalty for tableau moves that don't expose useful cards
+  CREATES_USEFUL_EMPTY: 25,        // Bonus for emptying tableau by moving to non-empty tableau
 }
 
 /**
@@ -217,17 +219,23 @@ function scoreMove(state: GameState, move: Move, weights: ScoreWeights): ScoredM
       const fromState = getPlayerState(state, fromOwner)
       const pile = fromState.tableau[move.from.index ?? 0]
       if (pile && pile.length === 1) {
-        score += weights.CREATES_EMPTY_TABLEAU
-        reasons.push('empties-tableau')
-
-        // Extra penalty: moving single card TO an empty tableau is pointless shuffling
+        // Moving single card - check if it's to a tableau
         if (move.to.type === 'tableau' && move.to.owner) {
           const toState = getPlayerState(state, move.to.owner)
           const toPile = toState.tableau[move.to.index ?? 0]
           if (toPile && toPile.length === 0) {
+            // Moving to empty tableau = pointless shuffling
             score += weights.POINTLESS_TABLEAU_SHUFFLE
             reasons.push('pointless-shuffle!')
+          } else {
+            // Moving to non-empty tableau = creates useful empty spot
+            score += weights.CREATES_USEFUL_EMPTY
+            reasons.push('creates-empty-spot')
           }
+        } else {
+          // Moving to foundation or attack - emptying tableau is neutral
+          score += weights.CREATES_EMPTY_TABLEAU
+          reasons.push('empties-tableau')
         }
       } else if (pile && pile.length > 1 && move.to.type === 'tableau') {
         // Tableau-to-tableau move with cards underneath - check if exposed card is useful

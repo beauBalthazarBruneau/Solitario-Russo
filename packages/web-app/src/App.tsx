@@ -10,11 +10,12 @@ import {
   type PileLocation,
   type Card,
 } from '@russian-bank/game-engine'
-import { computeAITurn } from '@russian-bank/ai-training'
+import { computeAITurn, type AITurnStep } from '@russian-bank/ai-training'
 import { GameBoard } from './components/GameBoard'
 import { GameStatus } from './components/GameStatus'
 import { HistorySheet } from './components/HistorySheet'
 import { AnimatingCard } from './components/AnimatingCard'
+import { SettingsModal } from './components/SettingsModal'
 import './App.css'
 
 interface AnimationState {
@@ -23,6 +24,7 @@ interface AnimationState {
   to: { x: number; y: number; width: number; height: number }
   pendingState: GameState
   pendingHistory: GameState[]
+  isAIMove?: boolean
 }
 
 function getPileDataId(location: PileLocation): string {
@@ -50,8 +52,14 @@ function App() {
   const [animation, setAnimation] = useState<AnimationState | null>(null)
   const [showHints, setShowHints] = useState(false)
   const [vsAI, setVsAI] = useState(true)
-  const aiSpeed = 400 // ms between AI moves
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const aiSpeed = 300 // ms between AI moves
   const isAnimating = useRef(false)
+
+  // AI turn handling - compute all moves upfront, then play them back with animations
+  const aiMovesRef = useRef<AITurnStep[]>([])
+  const aiMoveIndexRef = useRef(0)
+  const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Get source locations that have worthwhile moves (for hints)
   // Only shows high-value moves: foundation, attacks, and tableau moves that expose useful cards
@@ -83,16 +91,34 @@ function App() {
   )
 
   const handleNewGame = useCallback(() => {
+    // Clear any pending AI moves
+    if (aiTimeoutRef.current) {
+      clearTimeout(aiTimeoutRef.current)
+      aiTimeoutRef.current = null
+    }
+    aiMovesRef.current = []
+    aiMoveIndexRef.current = 0
+
     setGameState(initializeGame())
     setStateHistory([])
     setSelectedPile(null)
     setValidMoves([])
+    setAnimation(null)
+    isAnimating.current = false
   }, [])
 
   const handleUndo = useCallback(() => {
     if (stateHistory.length === 0) return
     const previousState = stateHistory[stateHistory.length - 1]
     if (previousState) {
+      // Clear any pending AI moves when undoing
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current)
+        aiTimeoutRef.current = null
+      }
+      aiMovesRef.current = []
+      aiMoveIndexRef.current = 0
+
       setStateHistory((prev) => prev.slice(0, -1))
       setGameState(previousState)
       setSelectedPile(null)
@@ -165,14 +191,73 @@ function App() {
     [gameState, validMoves, stateHistory]
   )
 
+  // Play next AI move with animation
+  const playNextAIMove = useCallback(() => {
+    if (aiMoveIndexRef.current >= aiMovesRef.current.length) {
+      // Done with AI moves
+      aiMovesRef.current = []
+      aiMoveIndexRef.current = 0
+      return
+    }
+
+    const step = aiMovesRef.current[aiMoveIndexRef.current]
+    if (!step) return
+
+    const { decision } = step
+
+    // If it's a move (not a draw), animate it
+    if (decision.type === 'move' && decision.move) {
+      const move = decision.move
+      const fromPos = getElementPosition(getPileDataId(move.from))
+      const toPos = getElementPosition(getPileDataId(move.to))
+
+      if (fromPos && toPos) {
+        isAnimating.current = true
+        setAnimation({
+          card: move.card,
+          from: fromPos,
+          to: toPos,
+          pendingState: step.state,
+          pendingHistory: [...stateHistory, gameState],
+          isAIMove: true,
+        })
+        aiMoveIndexRef.current++
+        return
+      }
+    }
+
+    // For draws or if we can't get positions, just apply the state
+    setStateHistory(prev => [...prev, gameState])
+    setGameState(step.state)
+    aiMoveIndexRef.current++
+
+    // Schedule next move
+    if (aiMoveIndexRef.current < aiMovesRef.current.length) {
+      aiTimeoutRef.current = setTimeout(playNextAIMove, aiSpeed)
+    } else {
+      aiMovesRef.current = []
+      aiMoveIndexRef.current = 0
+    }
+  }, [gameState, stateHistory, aiSpeed])
+
   const handleAnimationComplete = useCallback(() => {
     if (animation) {
       setGameState(animation.pendingState)
       setStateHistory(animation.pendingHistory)
+      const wasAIMove = animation.isAIMove
       setAnimation(null)
       isAnimating.current = false
+
+      // If this was an AI move, schedule the next one
+      if (wasAIMove && aiMoveIndexRef.current < aiMovesRef.current.length) {
+        aiTimeoutRef.current = setTimeout(playNextAIMove, aiSpeed)
+      } else if (wasAIMove) {
+        // AI turn complete
+        aiMovesRef.current = []
+        aiMoveIndexRef.current = 0
+      }
     }
-  }, [animation])
+  }, [animation, playNextAIMove, aiSpeed])
 
   const handlePileClick = useCallback(
     (location: PileLocation) => {
@@ -259,47 +344,32 @@ function App() {
     [gameState.winner, gameState.currentTurn]
   )
 
-  // AI turn handling - compute all moves upfront, then play them back
-  const aiMovesRef = useRef<{ state: GameState }[]>([])
-  const aiMoveIndexRef = useRef(0)
-
   // Compute AI moves when it becomes AI's turn
   useEffect(() => {
-    if (!vsAI || gameState.currentTurn !== 'player2' || gameState.winner || animation) {
+    if (!vsAI || gameState.currentTurn !== 'player2' || gameState.winner || animation || isAnimating.current) {
       return
     }
 
     // Only compute if we don't have moves queued
     if (aiMovesRef.current.length === 0) {
       const moves = computeAITurn(gameState)
-      aiMovesRef.current = moves
-      aiMoveIndexRef.current = 0
-    }
-  }, [vsAI, gameState, animation])
-
-  // Play back AI moves one at a time
-  useEffect(() => {
-    if (aiMovesRef.current.length === 0 || aiMoveIndexRef.current >= aiMovesRef.current.length) {
-      return
-    }
-
-    const timeoutId = setTimeout(() => {
-      const step = aiMovesRef.current[aiMoveIndexRef.current]
-      if (step) {
-        setStateHistory(prev => [...prev, gameState])
-        setGameState(step.state)
-        aiMoveIndexRef.current++
-
-        // Clear queue when done
-        if (aiMoveIndexRef.current >= aiMovesRef.current.length) {
-          aiMovesRef.current = []
-          aiMoveIndexRef.current = 0
-        }
+      if (moves.length > 0) {
+        aiMovesRef.current = moves
+        aiMoveIndexRef.current = 0
+        // Start playing moves after a short delay
+        aiTimeoutRef.current = setTimeout(playNextAIMove, aiSpeed)
       }
-    }, aiSpeed)
+    }
+  }, [vsAI, gameState, animation, playNextAIMove, aiSpeed])
 
-    return () => clearTimeout(timeoutId)
-  }, [gameState, aiSpeed])
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current)
+      }
+    }
+  }, [])
 
   return (
     <div className="app">
@@ -308,10 +378,8 @@ function App() {
         onNewGame={handleNewGame}
         onUndo={handleUndo}
         canUndo={stateHistory.length > 0 && !animation}
-        showHints={showHints}
-        onToggleHints={() => setShowHints((h) => !h)}
+        onOpenSettings={() => setSettingsOpen(true)}
         vsAI={vsAI}
-        onToggleAI={() => setVsAI((v) => !v)}
       />
       <GameBoard
         gameState={gameState}
@@ -333,6 +401,14 @@ function App() {
           onComplete={handleAnimationComplete}
         />
       )}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        showHints={showHints}
+        onToggleHints={() => setShowHints((h) => !h)}
+        vsAI={vsAI}
+        onToggleAI={() => setVsAI((v) => !v)}
+      />
     </div>
   )
 }

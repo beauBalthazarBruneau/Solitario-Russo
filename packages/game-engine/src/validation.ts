@@ -264,15 +264,26 @@ export function getHintMoves(state: GameState): Move[] {
       continue
     }
 
-    // For tableau moves, only include if they expose a useful card
+    // For tableau moves, only include if they expose a useful card or empty the tableau
     if (move.to.type === 'tableau' && move.from.type === 'tableau') {
       // Get the source tableau pile
       const fromOwner = move.from.owner
       const fromState = fromOwner === currentPlayer ? playerState : opponentState
       const sourcePile = fromState.tableau[move.from.index ?? 0]
 
-      // If there's only one card, moving it doesn't expose anything useful
-      if (!sourcePile || sourcePile.length <= 1) {
+      if (!sourcePile || sourcePile.length === 0) {
+        continue
+      }
+
+      // If there's only one card, moving it empties the tableau - but only useful
+      // if we're moving to a non-empty tableau (otherwise it's just shuffling)
+      if (sourcePile.length === 1) {
+        const toOwner = move.to.owner
+        const toState = toOwner === currentPlayer ? playerState : opponentState
+        const destPile = toState.tableau[move.to.index ?? 0]
+        if (destPile && destPile.length > 0) {
+          hintMoves.push(move)
+        }
         continue
       }
 
