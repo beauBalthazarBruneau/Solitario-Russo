@@ -6,6 +6,9 @@ import {
   applyMove,
   drawFromHand,
   getPlayerState,
+  getOpponent,
+  canPlayOnFoundation,
+  canPlayOnOpponentPile,
 } from '@russian-bank/game-engine'
 
 /**
@@ -36,6 +39,10 @@ export interface ScoreWeights {
   CREATES_EMPTY_TABLEAU: number // Slight penalty - empty tableaus less useful in this game
   PLAYS_ACE: number  // Aces to foundation open up plays
   PLAYS_TWO: number  // Twos follow aces
+
+  // Penalties for pointless moves
+  POINTLESS_TABLEAU_SHUFFLE: number // Heavy penalty for moving single card between empty tableaus
+  TABLEAU_MOVE_NO_BENEFIT: number   // Penalty for tableau-to-tableau that doesn't expose useful card
 }
 
 export const DEFAULT_WEIGHTS: ScoreWeights = {
@@ -51,6 +58,8 @@ export const DEFAULT_WEIGHTS: ScoreWeights = {
   CREATES_EMPTY_TABLEAU: -20,  // Lowered from -10 - avoid empty tableaus more
   PLAYS_ACE: 10,  // Lowered from 20 - don't over-prioritize aces
   PLAYS_TWO: 15,
+  POINTLESS_TABLEAU_SHUFFLE: -200, // Heavy penalty for moving single card to empty tableau
+  TABLEAU_MOVE_NO_BENEFIT: -50,    // Penalty for tableau moves that don't expose useful cards
 }
 
 /**
@@ -210,6 +219,46 @@ function scoreMove(state: GameState, move: Move, weights: ScoreWeights): ScoredM
       if (pile && pile.length === 1) {
         score += weights.CREATES_EMPTY_TABLEAU
         reasons.push('empties-tableau')
+
+        // Extra penalty: moving single card TO an empty tableau is pointless shuffling
+        if (move.to.type === 'tableau' && move.to.owner) {
+          const toState = getPlayerState(state, move.to.owner)
+          const toPile = toState.tableau[move.to.index ?? 0]
+          if (toPile && toPile.length === 0) {
+            score += weights.POINTLESS_TABLEAU_SHUFFLE
+            reasons.push('pointless-shuffle!')
+          }
+        }
+      } else if (pile && pile.length > 1 && move.to.type === 'tableau') {
+        // Tableau-to-tableau move with cards underneath - check if exposed card is useful
+        const exposedCard = pile[pile.length - 2]
+        if (exposedCard) {
+          const opponent = getOpponent(currentPlayer)
+          const opponentState = getPlayerState(state, opponent)
+          let exposedCardIsUseful = false
+
+          // Check if exposed card can go to foundation
+          for (let i = 0; i < state.foundations.length; i++) {
+            const foundationPile = state.foundations[i]
+            if (foundationPile && canPlayOnFoundation(exposedCard, foundationPile, i)) {
+              exposedCardIsUseful = true
+              break
+            }
+          }
+
+          // Check if exposed card can attack opponent
+          if (!exposedCardIsUseful) {
+            if (canPlayOnOpponentPile(exposedCard, opponentState.waste) ||
+                canPlayOnOpponentPile(exposedCard, opponentState.reserve)) {
+              exposedCardIsUseful = true
+            }
+          }
+
+          if (!exposedCardIsUseful) {
+            score += weights.TABLEAU_MOVE_NO_BENEFIT
+            reasons.push('no-benefit')
+          }
+        }
       }
     }
   }

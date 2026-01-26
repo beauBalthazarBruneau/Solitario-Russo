@@ -3,6 +3,7 @@ import { RESERVE_SIZE, TABLEAU_COUNT, MAX_MOVES } from './constants.js'
 import { createDeck, shuffle, createSeededRng } from './deck.js'
 import {
   getValidMoves,
+  getHintMoves,
   isValidMove,
   getPlayerState,
   getOpponent,
@@ -374,6 +375,7 @@ function getMovesForCard(state: GameState, card: Card, from: Move['from']): Move
 // Re-export validation functions for convenience
 export {
   getValidMoves,
+  getHintMoves,
   isValidMove,
   canDrawFromHand,
   getPlayerState,

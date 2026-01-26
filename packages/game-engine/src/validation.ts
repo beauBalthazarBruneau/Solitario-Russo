@@ -240,6 +240,80 @@ export function canDrawFromHand(state: GameState): boolean {
 }
 
 /**
+ * Gets moves that are worth showing as hints
+ * Prioritizes: foundation moves, attack moves, and tableau moves that expose useful cards
+ */
+export function getHintMoves(state: GameState): Move[] {
+  const allMoves = getValidMoves(state)
+  const hintMoves: Move[] = []
+  const currentPlayer = state.currentTurn
+  const opponent = getOpponent(currentPlayer)
+  const playerState = getPlayerState(state, currentPlayer)
+  const opponentState = getPlayerState(state, opponent)
+
+  for (const move of allMoves) {
+    // Always include foundation moves - these are always good
+    if (move.to.type === 'foundation') {
+      hintMoves.push(move)
+      continue
+    }
+
+    // Always include attack moves (playing on opponent's waste or reserve)
+    if (move.to.type === 'waste' || move.to.type === 'reserve') {
+      hintMoves.push(move)
+      continue
+    }
+
+    // For tableau moves, only include if they expose a useful card
+    if (move.to.type === 'tableau' && move.from.type === 'tableau') {
+      // Get the source tableau pile
+      const fromOwner = move.from.owner
+      const fromState = fromOwner === currentPlayer ? playerState : opponentState
+      const sourcePile = fromState.tableau[move.from.index ?? 0]
+
+      // If there's only one card, moving it doesn't expose anything useful
+      if (!sourcePile || sourcePile.length <= 1) {
+        continue
+      }
+
+      // Check the card that would be exposed (second from top)
+      const exposedCard = sourcePile[sourcePile.length - 2]
+      if (!exposedCard) continue
+
+      // Check if exposed card can go to foundation
+      let exposedCardIsUseful = false
+      for (let i = 0; i < state.foundations.length; i++) {
+        const pile = state.foundations[i]
+        if (pile && canPlayOnFoundation(exposedCard, pile, i)) {
+          exposedCardIsUseful = true
+          break
+        }
+      }
+
+      // Check if exposed card can attack opponent's waste or reserve
+      if (!exposedCardIsUseful) {
+        if (canPlayOnOpponentPile(exposedCard, opponentState.waste) ||
+            canPlayOnOpponentPile(exposedCard, opponentState.reserve)) {
+          exposedCardIsUseful = true
+        }
+      }
+
+      if (exposedCardIsUseful) {
+        hintMoves.push(move)
+      }
+      continue
+    }
+
+    // For non-tableau source moves to tableau (from reserve/waste), always include
+    if (move.to.type === 'tableau' && move.from.type !== 'tableau') {
+      hintMoves.push(move)
+    }
+  }
+
+  return hintMoves
+}
+
+/**
  * Validates a specific move
  */
 export function isValidMove(state: GameState, move: Move): MoveResult {

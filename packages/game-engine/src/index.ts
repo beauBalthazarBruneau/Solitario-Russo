@@ -38,6 +38,7 @@ export {
   applyMove,
   drawFromHand,
   getValidMoves,
+  getHintMoves,
   isValidMove,
   canDrawFromHand,
   getPlayerState,

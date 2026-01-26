@@ -4,6 +4,7 @@ import {
   applyMove,
   drawFromHand,
   getValidMoves,
+  getHintMoves,
   type GameState,
   type Move,
   type PileLocation,
@@ -52,10 +53,11 @@ function App() {
   const aiSpeed = 400 // ms between AI moves
   const isAnimating = useRef(false)
 
-  // Get all source locations that have valid moves (for hints)
+  // Get source locations that have worthwhile moves (for hints)
+  // Only shows high-value moves: foundation, attacks, and tableau moves that expose useful cards
   const sourcesWithMoves = useMemo(() => {
     if (!showHints || gameState.winner || animation) return []
-    const moves = getValidMoves(gameState)
+    const moves = getHintMoves(gameState)
     const sources = new Map<string, { location: PileLocation; moveCount: number }>()
 
     for (const move of moves) {
