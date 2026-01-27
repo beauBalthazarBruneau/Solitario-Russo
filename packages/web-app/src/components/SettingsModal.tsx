@@ -1,3 +1,4 @@
+import { BOT_PROFILES } from '@russian-bank/ai-training'
 import './SettingsModal.css'
 
 interface SettingsModalProps {
@@ -7,6 +8,8 @@ interface SettingsModalProps {
   onToggleHints: () => void
   vsAI: boolean
   onToggleAI: () => void
+  selectedBotId: string
+  onSelectBot: (botId: string) => void
 }
 
 export function SettingsModal({
@@ -16,6 +19,8 @@ export function SettingsModal({
   onToggleHints,
   vsAI,
   onToggleAI,
+  selectedBotId,
+  onSelectBot,
 }: SettingsModalProps) {
   if (!isOpen) return null
 
@@ -38,6 +43,22 @@ export function SettingsModal({
               <span className="settings-modal__toggle-knob" />
             </button>
           </label>
+          {vsAI && (
+            <label className="settings-modal__option settings-modal__option--column">
+              <span>Bot Opponent</span>
+              <select
+                className="settings-modal__select"
+                value={selectedBotId}
+                onChange={(e) => onSelectBot(e.target.value)}
+              >
+                {BOT_PROFILES.map((bot) => (
+                  <option key={bot.id} value={bot.id}>
+                    {bot.name} — {bot.description}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="settings-modal__option">
             <span>Show Hints</span>
             <button

@@ -8,9 +8,10 @@ interface GameStatusProps {
   canUndo: boolean
   onOpenSettings: () => void
   vsAI: boolean
+  botName?: string
 }
 
-export function GameStatus({ gameState, onNewGame, onUndo, canUndo, onOpenSettings, vsAI }: GameStatusProps) {
+export function GameStatus({ gameState, onNewGame, onUndo, canUndo, onOpenSettings, vsAI, botName }: GameStatusProps) {
   const { currentTurn, winner, moveCount, player1, player2 } = gameState
 
   const p1CardsLeft = player1.reserve.length + player1.hand.length + player1.waste.length
@@ -21,11 +22,11 @@ export function GameStatus({ gameState, onNewGame, onUndo, canUndo, onOpenSettin
       <div className="game-status__info">
         {winner ? (
           <span className="game-status__winner">
-            {winner === 'player1' ? 'You Win!' : vsAI ? 'AI Wins!' : 'Opponent Wins!'}
+            {winner === 'player1' ? 'You Win!' : vsAI ? `${botName ?? 'AI'} Wins!` : 'Opponent Wins!'}
           </span>
         ) : (
           <span className="game-status__turn">
-            {currentTurn === 'player1' ? 'Your Turn' : vsAI ? "AI's Turn" : "Opponent's Turn"}
+            {currentTurn === 'player1' ? 'Your Turn' : vsAI ? `${botName ?? 'AI'}'s Turn` : "Opponent's Turn"}
           </span>
         )}
         <span className="game-status__moves">Moves: {moveCount}</span>
@@ -35,7 +36,7 @@ export function GameStatus({ gameState, onNewGame, onUndo, canUndo, onOpenSettin
           You: {p1CardsLeft}
         </span>
         <span className="game-status__score game-status__score--p2">
-          {vsAI ? 'AI' : 'Opp'}: {p2CardsLeft}
+          {vsAI ? (botName ?? 'AI') : 'Opp'}: {p2CardsLeft}
         </span>
       </div>
       <div className="game-status__actions">

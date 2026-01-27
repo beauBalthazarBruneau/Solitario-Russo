@@ -106,6 +106,9 @@ const WEIGHT_BOUNDS: Record<keyof ScoreWeights, { min: number; max: number }> = 
   POINTLESS_TABLEAU_SHUFFLE: { min: -500, max: 0 },
   TABLEAU_MOVE_NO_BENEFIT: { min: -200, max: 0 },
   CREATES_USEFUL_EMPTY: { min: 0, max: 100 },
+  DRAW_AVOIDANCE_EMPTY_BONUS: { min: 10, max: 100 },
+  STACK_HEIGHT_BONUS: { min: 0, max: 30 },
+  SPREAD_PENALTY: { min: -50, max: 0 },
 }
 
 // ============================================================================

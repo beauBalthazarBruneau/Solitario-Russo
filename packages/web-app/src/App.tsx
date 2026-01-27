@@ -10,13 +10,24 @@ import {
   type PileLocation,
   type Card,
 } from '@russian-bank/game-engine'
-import { computeAITurn, type AITurnStep } from '@russian-bank/ai-training'
+import { computeAITurn, BOT_PROFILES, DEFAULT_BOT_PROFILE, type AITurnStep } from '@russian-bank/ai-training'
 import { GameBoard } from './components/GameBoard'
 import { GameStatus } from './components/GameStatus'
 import { HistorySheet } from './components/HistorySheet'
 import { AnimatingCard } from './components/AnimatingCard'
 import { SettingsModal } from './components/SettingsModal'
 import './App.css'
+
+interface GameTranscript {
+  seed: number
+  botId: string
+  winner: 'player1' | 'player2'
+  history: string[]
+  moveCount: number
+  p1CardsLeft: number
+  p2CardsLeft: number
+  timestamp: number
+}
 
 interface AnimationState {
   card: Card
@@ -53,6 +64,12 @@ function App() {
   const [showHints, setShowHints] = useState(false)
   const [vsAI, setVsAI] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [selectedBotId, setSelectedBotId] = useState(DEFAULT_BOT_PROFILE.id)
+
+  const selectedBot = useMemo(
+    () => BOT_PROFILES.find((b) => b.id === selectedBotId) ?? DEFAULT_BOT_PROFILE,
+    [selectedBotId]
+  )
   const aiSpeed = 300 // ms between AI moves
   const isAnimating = useRef(false)
 
@@ -352,7 +369,7 @@ function App() {
 
     // Only compute if we don't have moves queued
     if (aiMovesRef.current.length === 0) {
-      const moves = computeAITurn(gameState)
+      const moves = computeAITurn(gameState, selectedBot.weights, selectedBot.config)
       if (moves.length > 0) {
         aiMovesRef.current = moves
         aiMoveIndexRef.current = 0
@@ -360,7 +377,7 @@ function App() {
         aiTimeoutRef.current = setTimeout(playNextAIMove, aiSpeed)
       }
     }
-  }, [vsAI, gameState, animation, playNextAIMove, aiSpeed])
+  }, [vsAI, gameState, animation, playNextAIMove, aiSpeed, selectedBot])
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -371,6 +388,33 @@ function App() {
     }
   }, [])
 
+  // Log completed AI games to localStorage
+  useEffect(() => {
+    if (!vsAI || !gameState.winner) return
+
+    const p1 = gameState.player1
+    const p2 = gameState.player2
+    const transcript: GameTranscript = {
+      seed: gameState.seed,
+      botId: selectedBotId,
+      winner: gameState.winner,
+      history: gameState.history,
+      moveCount: gameState.moveCount,
+      p1CardsLeft: p1.reserve.length + p1.hand.length + p1.waste.length,
+      p2CardsLeft: p2.reserve.length + p2.hand.length + p2.waste.length,
+      timestamp: Date.now(),
+    }
+
+    try {
+      const raw = localStorage.getItem('gameTranscripts')
+      const transcripts: GameTranscript[] = raw ? JSON.parse(raw) : []
+      transcripts.push(transcript)
+      localStorage.setItem('gameTranscripts', JSON.stringify(transcripts.slice(-1000)))
+    } catch {
+      // Ignore storage errors (quota exceeded, etc.)
+    }
+  }, [gameState.winner, vsAI, selectedBotId, gameState])
+
   return (
     <div className="app">
       <GameStatus
@@ -380,6 +424,7 @@ function App() {
         canUndo={stateHistory.length > 0 && !animation}
         onOpenSettings={() => setSettingsOpen(true)}
         vsAI={vsAI}
+        botName={vsAI ? selectedBot.name : undefined}
       />
       <GameBoard
         gameState={gameState}
@@ -408,6 +453,8 @@ function App() {
         onToggleHints={() => setShowHints((h) => !h)}
         vsAI={vsAI}
         onToggleAI={() => setVsAI((v) => !v)}
+        selectedBotId={selectedBotId}
+        onSelectBot={setSelectedBotId}
       />
     </div>
   )
