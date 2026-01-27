@@ -47,21 +47,21 @@ export interface ScoreWeights {
 }
 
 export const DEFAULT_WEIGHTS: ScoreWeights = {
-  TO_FOUNDATION: 50,  // Lowered from 100 - AI plays better with more flexibility
-  ATTACK_RESERVE: 40,  // Lowered from 80 - less aggressive attacking
-  ATTACK_WASTE: 18,  // Lowered from 70 -> 35 -> 18 - much less aggressive on waste
-  FROM_RESERVE: 50,
-  FROM_WASTE: 30,
-  FROM_TABLEAU: 5,  // Lowered from 10 - deprioritize tableau moves, focus on reserve/waste
-  TO_OWN_TABLEAU: 5,
-  TO_OPPONENT_TABLEAU: 15,
-  EMPTIES_RESERVE: 200,
-  CREATES_EMPTY_TABLEAU: -20,  // Lowered from -10 - avoid empty tableaus more
-  PLAYS_ACE: 10,  // Lowered from 20 - don't over-prioritize aces
-  PLAYS_TWO: 15,
-  POINTLESS_TABLEAU_SHUFFLE: -200, // Heavy penalty for moving single card to empty tableau
-  TABLEAU_MOVE_NO_BENEFIT: -50,    // Penalty for tableau moves that don't expose useful cards
-  CREATES_USEFUL_EMPTY: 25,        // Bonus for emptying tableau by moving to non-empty tableau
+  TO_FOUNDATION: 56,   // Evolved from 50 - slightly higher foundation priority
+  ATTACK_RESERVE: 63,  // Evolved from 40 - much more aggressive reserve blocking
+  ATTACK_WASTE: 8,     // Evolved from 18 - mostly ignore opponent waste
+  FROM_RESERVE: 21,    // Evolved from 50 - less eager to play from reserve
+  FROM_WASTE: 24,      // Evolved from 30 - slightly less waste priority
+  FROM_TABLEAU: 5,
+  TO_OWN_TABLEAU: 24,        // Evolved from 5 - much more willing to build on own tableau
+  TO_OPPONENT_TABLEAU: 24,   // Evolved from 15 - more willing to dump on opponent
+  EMPTIES_RESERVE: 118,      // Evolved from 200 - less obsessed with emptying reserve
+  CREATES_EMPTY_TABLEAU: -8, // Evolved from -20 - less penalty for empty tableaus
+  PLAYS_ACE: 0,              // Evolved from 10 - no special ace priority
+  PLAYS_TWO: 24,             // Evolved from 15 - higher two priority
+  POINTLESS_TABLEAU_SHUFFLE: -43,  // Evolved from -200 - less afraid of shuffling
+  TABLEAU_MOVE_NO_BENEFIT: -80,    // Evolved from -50 - stricter about bad tableau moves
+  CREATES_USEFUL_EMPTY: 54,        // Evolved from 25 - doubled emphasis on useful empties
 }
 
 /**
