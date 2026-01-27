@@ -11,9 +11,12 @@
     }
   },
   "scripts": {
-    "train": "tsx src/scripts/train.ts",
-    "train:weekend": "tsx src/scripts/train.ts -g 500 -p 100 -G 50",
-    "benchmark": "tsx src/scripts/benchmark.ts",
+    "train": "npx tsx src/scripts/train.ts",
+    "train:weekend": "npx tsx src/scripts/train.ts -g 500 -p 100 -G 50",
+    "train:overnight": "npx tsx src/scripts/overnight-train.ts --overnight -v",
+    "train:quick": "npx tsx src/scripts/overnight-train.ts --quick -v",
+    "train:evolve": "npx tsx src/scripts/overnight-train.ts",
+    "benchmark": "npx tsx src/scripts/benchmark.ts",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
