@@ -543,17 +543,27 @@ async function runOvernightTraining(config: TrainingConfig, outputDir: string, v
   console.log(`Mutation Rate: ${(config.mutationRate * 100).toFixed(0)}%`)
   console.log(`Output Directory: ${outputDir}`)
   console.log('')
-  console.log('Press Ctrl+C to stop (progress is saved automatically)')
+  console.log('Press Ctrl+C to stop after current generation completes')
   console.log('')
 
-  // Handle graceful shutdown
+  // Handle graceful shutdown - finish current generation before stopping
   let shouldStop = false
+  let isEvaluating = false
   process.on('SIGINT', () => {
-    console.log('\nReceived interrupt signal, saving checkpoint...')
+    if (shouldStop) {
+      // Second Ctrl+C - force exit
+      console.log('\nForce stopping...')
+      process.exit(1)
+    }
     shouldStop = true
+    if (isEvaluating) {
+      console.log('\n\n>>> Stopping after current generation completes... (press Ctrl+C again to force quit)')
+    } else {
+      console.log('\n>>> Stopping...')
+    }
   })
 
-  for (let gen = startGeneration; gen <= config.generations && !shouldStop; gen++) {
+  for (let gen = startGeneration; gen <= config.generations; gen++) {
     const genStart = Date.now()
 
     if (verbose) {
@@ -561,6 +571,7 @@ async function runOvernightTraining(config: TrainingConfig, outputDir: string, v
     }
 
     // Evaluate all individuals
+    isEvaluating = true
     for (let i = 0; i < population.length; i++) {
       const individual = population[i]!
       evaluateIndividual(
@@ -573,9 +584,11 @@ async function runOvernightTraining(config: TrainingConfig, outputDir: string, v
       totalGamesPlayed += config.gamesPerEvaluation * 2
 
       if (verbose) {
-        process.stdout.write(`  Evaluating ${i + 1}/${population.length}: ${(individual.fitness * 100).toFixed(1)}% win rate\r`)
+        const stopIndicator = shouldStop ? ' [STOPPING AFTER THIS GEN]' : ''
+        process.stdout.write(`  Evaluating ${i + 1}/${population.length}: ${(individual.fitness * 100).toFixed(1)}% win rate${stopIndicator}\r`)
       }
     }
+    isEvaluating = false
 
     // Sort by fitness
     population.sort((a, b) => b.fitness - a.fitness)
@@ -621,8 +634,8 @@ async function runOvernightTraining(config: TrainingConfig, outputDir: string, v
       `ETA=${formatDuration(eta)}`
     )
 
-    // Save checkpoint periodically
-    if (gen % config.checkpointInterval === 0 || gen === config.generations) {
+    // Save checkpoint periodically or when stopping
+    if (gen % config.checkpointInterval === 0 || gen === config.generations || shouldStop) {
       const currentCheckpoint: Checkpoint = {
         version: 1,
         config,
@@ -641,8 +654,14 @@ async function runOvernightTraining(config: TrainingConfig, outputDir: string, v
       }
     }
 
+    // Stop if requested (after completing the generation)
+    if (shouldStop) {
+      console.log(`\nStopping after generation ${gen} (user requested)`)
+      break
+    }
+
     // Create next generation (unless this is the last)
-    if (gen < config.generations && !shouldStop) {
+    if (gen < config.generations) {
       const nextPopulation: Individual[] = []
 
       // Elitism: keep top performers
@@ -681,10 +700,13 @@ async function runOvernightTraining(config: TrainingConfig, outputDir: string, v
   }
 
   // Final checkpoint
+  const lastCompletedGen = generationHistory.length > 0
+    ? generationHistory[generationHistory.length - 1]!.number
+    : 0
   const finalCheckpoint: Checkpoint = {
     version: 1,
     config,
-    currentGeneration: Math.min(startGeneration + config.generations - 1, config.generations),
+    currentGeneration: lastCompletedGen,
     bestIndividual: population[0]!,
     allTimeBest,
     population,
