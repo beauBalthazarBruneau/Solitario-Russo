@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-01-27T06:17:42.142Z",
+  "fitness": 0.82,
+  "winRate": "82.0%",
+  "weights": {
+    "TO_FOUNDATION": 56,
+    "ATTACK_RESERVE": 63,
+    "ATTACK_WASTE": 8,
+    "FROM_RESERVE": 21,
+    "FROM_WASTE": 24,
+    "FROM_TABLEAU": 5,
+    "TO_OWN_TABLEAU": 24,
+    "TO_OPPONENT_TABLEAU": 24,
+    "EMPTIES_RESERVE": 118,
+    "CREATES_EMPTY_TABLEAU": -8,
+    "PLAYS_ACE": 0,
+    "PLAYS_TWO": 24,
+    "POINTLESS_TABLEAU_SHUFFLE": -43,
+    "TABLEAU_MOVE_NO_BENEFIT": -80,
+    "CREATES_USEFUL_EMPTY": 54
+  }
+}
