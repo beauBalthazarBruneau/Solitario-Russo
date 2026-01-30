@@ -53,7 +53,7 @@ export function SettingsModal({
               >
                 {BOT_PROFILES.map((bot) => (
                   <option key={bot.id} value={bot.id}>
-                    {bot.name} — {bot.description}
+                    {bot.name} ({bot.difficulty})
                   </option>
                 ))}
               </select>

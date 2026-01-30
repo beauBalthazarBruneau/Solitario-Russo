@@ -16,6 +16,7 @@ import { GameStatus } from './components/GameStatus'
 import { HistorySheet } from './components/HistorySheet'
 import { AnimatingCard } from './components/AnimatingCard'
 import { SettingsModal } from './components/SettingsModal'
+import { EvaluationBar } from './components/EvaluationBar'
 import './App.css'
 
 interface GameTranscript {
@@ -61,7 +62,7 @@ function App() {
   const [selectedPile, setSelectedPile] = useState<PileLocation | null>(null)
   const [validMoves, setValidMoves] = useState<Move[]>([])
   const [animation, setAnimation] = useState<AnimationState | null>(null)
-  const [showHints, setShowHints] = useState(false)
+  const [showHints, setShowHints] = useState(true)
   const [vsAI, setVsAI] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedBotId, setSelectedBotId] = useState(DEFAULT_BOT_PROFILE.id)
@@ -77,6 +78,7 @@ function App() {
   const aiMovesRef = useRef<AITurnStep[]>([])
   const aiMoveIndexRef = useRef(0)
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const playNextAIMoveRef = useRef<() => void>(() => {})
 
   // Get source locations that have worthwhile moves (for hints)
   // Only shows high-value moves: foundation, attacks, and tableau moves that expose useful cards
@@ -101,10 +103,12 @@ function App() {
   const hasMovesFrom = useCallback(
     (location: PileLocation) => {
       if (!showHints) return false
+      // Hide hints when a card is selected (showing valid targets instead)
+      if (selectedPile) return false
       const key = getPileDataId(location)
       return sourcesWithMoves.some(s => getPileDataId(s.location) === key)
     },
-    [showHints, sourcesWithMoves]
+    [showHints, sourcesWithMoves, selectedPile]
   )
 
   const handleNewGame = useCallback(() => {
@@ -147,7 +151,7 @@ function App() {
     (location: PileLocation) => {
       // Can't select foundations as source
       if (location.type === 'foundation') return
-      // Can only select own reserve/waste, but can select ANY tableau
+      // Can only select own reserve/waste/drawn, but can select ANY tableau
       if (location.type !== 'tableau' && location.owner !== gameState.currentTurn) return
 
       const moves = getValidMoves(gameState)
@@ -250,7 +254,7 @@ function App() {
 
     // Schedule next move
     if (aiMoveIndexRef.current < aiMovesRef.current.length) {
-      aiTimeoutRef.current = setTimeout(playNextAIMove, aiSpeed)
+      aiTimeoutRef.current = setTimeout(() => playNextAIMoveRef.current(), aiSpeed)
     } else {
       aiMovesRef.current = []
       aiMoveIndexRef.current = 0
@@ -267,14 +271,14 @@ function App() {
 
       // If this was an AI move, schedule the next one
       if (wasAIMove && aiMoveIndexRef.current < aiMovesRef.current.length) {
-        aiTimeoutRef.current = setTimeout(playNextAIMove, aiSpeed)
+        aiTimeoutRef.current = setTimeout(() => playNextAIMoveRef.current(), aiSpeed)
       } else if (wasAIMove) {
         // AI turn complete
         aiMovesRef.current = []
         aiMoveIndexRef.current = 0
       }
     }
-  }, [animation, playNextAIMove, aiSpeed])
+  }, [animation, aiSpeed])
 
   const handlePileClick = useCallback(
     (location: PileLocation) => {
@@ -304,27 +308,6 @@ function App() {
     [gameState, selectedPile, selectPile, tryMove]
   )
 
-  const handleDragStart = useCallback(
-    (location: PileLocation) => {
-      if (gameState.winner) return
-      selectPile(location)
-    },
-    [gameState.winner, selectPile]
-  )
-
-  const handleDragEnd = useCallback(() => {
-    setSelectedPile(null)
-    setValidMoves([])
-  }, [])
-
-  const handleDrop = useCallback(
-    (location: PileLocation) => {
-      if (!selectedPile) return
-      tryMove(location)
-    },
-    [selectedPile, tryMove]
-  )
-
   const isValidTarget = useCallback(
     (location: PileLocation) => {
       return validMoves.some(
@@ -349,17 +332,8 @@ function App() {
     [selectedPile]
   )
 
-  const canDrag = useCallback(
-    (location: PileLocation) => {
-      if (gameState.winner) return false
-      if (location.type === 'foundation') return false
-      if (location.type === 'hand') return false
-      // Can only drag from own reserve/waste, but can drag from ANY tableau
-      if (location.type !== 'tableau' && location.owner !== gameState.currentTurn) return false
-      return true
-    },
-    [gameState.winner, gameState.currentTurn]
-  )
+  // Keep playNextAIMove ref updated
+  playNextAIMoveRef.current = playNextAIMove
 
   // Compute AI moves when it becomes AI's turn
   useEffect(() => {
@@ -367,23 +341,30 @@ function App() {
       return
     }
 
-    // Only compute if we don't have moves queued
+    // Compute moves if we don't have any queued
     if (aiMovesRef.current.length === 0) {
       const moves = computeAITurn(gameState, selectedBot.weights, selectedBot.config)
       if (moves.length > 0) {
         aiMovesRef.current = moves
         aiMoveIndexRef.current = 0
-        // Start playing moves after a short delay
-        aiTimeoutRef.current = setTimeout(playNextAIMove, aiSpeed)
       }
     }
-  }, [vsAI, gameState, animation, playNextAIMove, aiSpeed, selectedBot])
+
+    // Schedule next move if we have moves and no timeout pending
+    if (aiMovesRef.current.length > 0 && !aiTimeoutRef.current) {
+      aiTimeoutRef.current = setTimeout(() => {
+        aiTimeoutRef.current = null
+        playNextAIMoveRef.current()
+      }, aiSpeed)
+    }
+  }, [vsAI, gameState, animation, aiSpeed, selectedBot])
 
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (aiTimeoutRef.current) {
         clearTimeout(aiTimeoutRef.current)
+        aiTimeoutRef.current = null
       }
     }
   }, [])
@@ -400,8 +381,8 @@ function App() {
       winner: gameState.winner,
       history: gameState.history,
       moveCount: gameState.moveCount,
-      p1CardsLeft: p1.reserve.length + p1.hand.length + p1.waste.length,
-      p2CardsLeft: p2.reserve.length + p2.hand.length + p2.waste.length,
+      p1CardsLeft: p1.reserve.length + p1.hand.length + p1.waste.length + (p1.drawnCard ? 1 : 0),
+      p2CardsLeft: p2.reserve.length + p2.hand.length + p2.waste.length + (p2.drawnCard ? 1 : 0),
       timestamp: Date.now(),
     }
 
@@ -415,6 +396,11 @@ function App() {
     }
   }, [gameState.winner, vsAI, selectedBotId, gameState])
 
+  const p1 = gameState.player1
+  const p2 = gameState.player2
+  const p1CardsLeft = p1.reserve.length + p1.hand.length + p1.waste.length + (p1.drawnCard ? 1 : 0)
+  const p2CardsLeft = p2.reserve.length + p2.hand.length + p2.waste.length + (p2.drawnCard ? 1 : 0)
+
   return (
     <div className="app">
       <GameStatus
@@ -426,17 +412,18 @@ function App() {
         vsAI={vsAI}
         botName={vsAI ? selectedBot.name : undefined}
       />
-      <GameBoard
-        gameState={gameState}
-        onPileClick={handlePileClick}
-        isSelected={isSelected}
-        isValidTarget={isValidTarget}
-        canDrag={canDrag}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDrop={handleDrop}
-        hasMovesFrom={hasMovesFrom}
-      />
+      <div className="app__main">
+        <EvaluationBar player1Cards={p1CardsLeft} player2Cards={p2CardsLeft} />
+        <GameBoard
+          gameState={gameState}
+          onPileClick={handlePileClick}
+          isSelected={isSelected}
+          isValidTarget={isValidTarget}
+          hasMovesFrom={hasMovesFrom}
+          player1Name="You"
+          player2Name={vsAI ? selectedBot.name : 'Player 2'}
+        />
+      </div>
       <HistorySheet history={gameState.history} />
       {animation && (
         <AnimatingCard

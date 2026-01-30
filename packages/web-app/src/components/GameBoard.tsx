@@ -12,11 +12,9 @@ interface GameBoardProps {
   onPileClick: (location: PileLocation) => void
   isSelected: (location: PileLocation) => boolean
   isValidTarget: (location: PileLocation) => boolean
-  canDrag: (location: PileLocation) => boolean
-  onDragStart: (location: PileLocation) => void
-  onDragEnd: () => void
-  onDrop: (location: PileLocation) => void
   hasMovesFrom: (location: PileLocation) => boolean
+  player1Name: string
+  player2Name: string
 }
 
 export function GameBoard({
@@ -24,21 +22,19 @@ export function GameBoard({
   onPileClick,
   isSelected,
   isValidTarget,
-  canDrag,
-  onDragStart,
-  onDragEnd,
-  onDrop,
   hasMovesFrom,
+  player1Name,
+  player2Name,
 }: GameBoardProps) {
   const { player1, player2, foundations, currentTurn } = gameState
+
+  const p1CardsLeft = player1.reserve.length + player1.hand.length + player1.waste.length + (player1.drawnCard ? 1 : 0)
+  const p2CardsLeft = player2.reserve.length + player2.hand.length + player2.waste.length + (player2.drawnCard ? 1 : 0)
 
   const pileProps = {
     onClick: onPileClick,
     isSelected,
     isValidTarget,
-    onDragStart,
-    onDragEnd,
-    onDrop,
     hasMovesFrom,
   }
 
@@ -46,13 +42,22 @@ export function GameBoard({
     <div className="game-board">
       {/* Player 2 Area (top - opponent) */}
       <div className={`player-area player-area--top ${currentTurn === 'player2' ? 'player-area--active' : ''}`}>
+        <div className="player-area__info">
+          <span className="player-area__name">{player2Name}</span>
+          <span className="player-area__cards">{p2CardsLeft} cards</span>
+        </div>
+        <Pile
+          cards={player2.drawnCard ? [player2.drawnCard] : []}
+          location={{ type: 'drawn', owner: 'player2' }}
+          label="Drawn"
+          {...pileProps}
+        />
         <Pile
           cards={player2.hand}
           location={{ type: 'hand', owner: 'player2' }}
           label="Hand"
           showCount
           faceDown
-          canDrag={false}
           {...pileProps}
         />
         <Pile
@@ -60,7 +65,6 @@ export function GameBoard({
           location={{ type: 'waste', owner: 'player2' }}
           label="Waste"
           showCount
-          canDrag={canDrag({ type: 'waste', owner: 'player2' })}
           {...pileProps}
         />
         <Pile
@@ -68,7 +72,6 @@ export function GameBoard({
           location={{ type: 'reserve', owner: 'player2' }}
           label="Reserve"
           showCount
-          canDrag={canDrag({ type: 'reserve', owner: 'player2' })}
           {...pileProps}
         />
       </div>
@@ -82,7 +85,6 @@ export function GameBoard({
               cards={player2.tableau[rowIndex] ?? []}
               location={{ type: 'tableau', owner: 'player2', index: rowIndex }}
               direction="left"
-              canDrag={canDrag({ type: 'tableau', owner: 'player2', index: rowIndex })}
               {...pileProps}
             />
             {/* Foundation column 1 */}
@@ -93,7 +95,6 @@ export function GameBoard({
               onClick={onPileClick}
               isSelected={isSelected}
               isValidTarget={isValidTarget}
-              onDrop={onDrop}
             />
             {/* Foundation column 2 */}
             <FoundationPile
@@ -103,14 +104,12 @@ export function GameBoard({
               onClick={onPileClick}
               isSelected={isSelected}
               isValidTarget={isValidTarget}
-              onDrop={onDrop}
             />
             {/* Player 1 Tableau - fans right (away from center) */}
             <TableauPile
               cards={player1.tableau[rowIndex] ?? []}
               location={{ type: 'tableau', owner: 'player1', index: rowIndex }}
               direction="right"
-              canDrag={canDrag({ type: 'tableau', owner: 'player1', index: rowIndex })}
               {...pileProps}
             />
           </div>
@@ -119,12 +118,15 @@ export function GameBoard({
 
       {/* Player 1 Area (bottom - you) */}
       <div className={`player-area player-area--bottom ${currentTurn === 'player1' ? 'player-area--active' : ''}`}>
+        <div className="player-area__info">
+          <span className="player-area__name">{player1Name}</span>
+          <span className="player-area__cards">{p1CardsLeft} cards</span>
+        </div>
         <Pile
           cards={player1.reserve}
           location={{ type: 'reserve', owner: 'player1' }}
           label="Reserve"
           showCount
-          canDrag={canDrag({ type: 'reserve', owner: 'player1' })}
           {...pileProps}
         />
         <Pile
@@ -132,7 +134,6 @@ export function GameBoard({
           location={{ type: 'waste', owner: 'player1' }}
           label="Waste"
           showCount
-          canDrag={canDrag({ type: 'waste', owner: 'player1' })}
           {...pileProps}
         />
         <Pile
@@ -141,7 +142,12 @@ export function GameBoard({
           label="Hand"
           showCount
           faceDown
-          canDrag={false}
+          {...pileProps}
+        />
+        <Pile
+          cards={player1.drawnCard ? [player1.drawnCard] : []}
+          location={{ type: 'drawn', owner: 'player1' }}
+          label="Drawn"
           {...pileProps}
         />
       </div>

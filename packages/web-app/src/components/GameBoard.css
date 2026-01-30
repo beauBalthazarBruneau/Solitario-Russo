@@ -24,6 +24,28 @@
   box-shadow: inset 0 0 0 2px rgba(255, 215, 0, 0.3);
 }
 
+.player-area__info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  padding: 4px 8px;
+}
+
+.player-area__name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.player-area__cards {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
 .middle-area {
   flex: 1;
   display: flex;

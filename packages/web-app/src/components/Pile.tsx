@@ -11,10 +11,6 @@ interface PileProps {
   onClick: (location: PileLocation) => void
   isSelected: (location: PileLocation) => boolean
   isValidTarget: (location: PileLocation) => boolean
-  canDrag?: boolean
-  onDragStart?: (location: PileLocation) => void
-  onDragEnd?: () => void
-  onDrop?: (location: PileLocation) => void
   hasMovesFrom?: (location: PileLocation) => boolean
 }
 
@@ -27,10 +23,6 @@ export function Pile({
   onClick,
   isSelected,
   isValidTarget,
-  canDrag = false,
-  onDragStart,
-  onDragEnd,
-  onDrop,
   hasMovesFrom,
 }: PileProps) {
   const topCard = cards[cards.length - 1]
@@ -39,27 +31,6 @@ export function Pile({
   const hasHint = hasMovesFrom?.(location) ?? false
 
   const handleClick = () => onClick(location)
-
-  const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.effectAllowed = 'move'
-    onDragStart?.(location)
-  }
-
-  const handleDragEnd = () => {
-    onDragEnd?.()
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (validTarget) {
-      e.preventDefault()
-      e.dataTransfer.dropEffect = 'move'
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    onDrop?.(location)
-  }
 
   const pileId = location.index !== undefined
     ? `pile-${location.type}-${location.owner}-${location.index}`
@@ -76,11 +47,6 @@ export function Pile({
           selected={selected}
           validTarget={validTarget}
           hint={hasHint && !faceDown && cards.length > 0}
-          draggable={canDrag && !faceDown && cards.length > 0}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
         />
         {showCount && cards.length > 1 && (
           <div className="pile__count">{cards.length}</div>

@@ -8,11 +8,6 @@ interface CardProps {
   selected?: boolean
   validTarget?: boolean
   hint?: boolean
-  draggable?: boolean
-  onDragStart?: (e: React.DragEvent) => void
-  onDragEnd?: (e: React.DragEvent) => void
-  onDragOver?: (e: React.DragEvent) => void
-  onDrop?: (e: React.DragEvent) => void
 }
 
 const SUIT_CODE: Record<Suit, string> = {
@@ -51,19 +46,12 @@ export function Card({
   selected,
   validTarget,
   hint,
-  draggable = false,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDrop,
 }: CardProps) {
   if (!card) {
     return (
       <div
         className={`card card--empty ${validTarget ? 'card--valid-target' : ''}`}
         onClick={onClick}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
       />
     )
   }
@@ -73,8 +61,6 @@ export function Card({
       <div
         className={`card card--face-down card--${card.deck}`}
         onClick={onClick}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
       />
     )
   }
@@ -83,11 +69,6 @@ export function Card({
     <div
       className={`card card--face-up ${selected ? 'card--selected' : ''} ${validTarget ? 'card--valid-target' : ''} ${hint ? 'card--hint' : ''}`}
       onClick={onClick}
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
     >
       <img
         src={getCardImagePath(card)}

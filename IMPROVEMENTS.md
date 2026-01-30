@@ -14,3 +14,7 @@
 - Should not be able to move from one empty tableau to another.
 -  Should also not be able to do a move that repeats a game state.
  - Aces should always go straight to foundation.
+
+
+## Gameplay updates
+- when you draw, that card has to be plaed immediately or the turn is over.

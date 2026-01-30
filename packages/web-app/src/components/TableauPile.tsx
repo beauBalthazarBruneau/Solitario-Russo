@@ -9,10 +9,6 @@ interface TableauPileProps {
   onClick: (location: PileLocation) => void
   isSelected: (location: PileLocation) => boolean
   isValidTarget: (location: PileLocation) => boolean
-  canDrag: boolean
-  onDragStart: (location: PileLocation) => void
-  onDragEnd: () => void
-  onDrop: (location: PileLocation) => void
   hasMovesFrom?: (location: PileLocation) => boolean
 }
 
@@ -23,10 +19,6 @@ export function TableauPile({
   onClick,
   isSelected,
   isValidTarget,
-  canDrag,
-  onDragStart,
-  onDragEnd,
-  onDrop,
   hasMovesFrom,
 }: TableauPileProps) {
   const selected = isSelected(location)
@@ -34,27 +26,6 @@ export function TableauPile({
   const hasHint = hasMovesFrom?.(location) ?? false
 
   const handleClick = () => onClick(location)
-
-  const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.effectAllowed = 'move'
-    onDragStart(location)
-  }
-
-  const handleDragEnd = () => {
-    onDragEnd()
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (validTarget) {
-      e.preventDefault()
-      e.dataTransfer.dropEffect = 'move'
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    onDrop(location)
-  }
 
   const pileId = `pile-tableau-${location.owner}-${location.index}`
 
@@ -68,8 +39,6 @@ export function TableauPile({
           card={null}
           onClick={handleClick}
           validTarget={validTarget}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
         />
       </div>
     )
@@ -95,11 +64,6 @@ export function TableauPile({
               selected={isTop && selected}
               validTarget={isTop && validTarget}
               hint={isTop && hasHint}
-              draggable={isTop && canDrag}
-              onDragStart={isTop ? handleDragStart : undefined}
-              onDragEnd={isTop ? handleDragEnd : undefined}
-              onDragOver={isTop ? handleDragOver : undefined}
-              onDrop={isTop ? handleDrop : undefined}
             />
           </div>
         )

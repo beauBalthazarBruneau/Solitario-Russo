@@ -96,6 +96,8 @@ export function pileToNotation(location: PileLocation): string {
       const index = TABLEAU_INDEX_CHARS[location.index ?? 0] ?? 'a'
       return `T${player}${index}`
     }
+    case 'drawn':
+      return `G${location.owner === 'player1' ? '1' : '2'}`
     case 'foundation':
       return `F${(location.index ?? 0) + 1}`
     default:
@@ -127,6 +129,8 @@ export function notationToPile(notation: string): PileLocation | null {
       if (index === -1) return null
       return { type: 'tableau', owner: player, index }
     }
+    case 'G':
+      return { type: 'drawn', owner: rest === '1' ? 'player1' : 'player2' }
     case 'F': {
       const index = parseInt(rest, 10) - 1
       if (isNaN(index) || index < 0 || index > 7) return null

@@ -1,0 +1,22 @@
+.evaluation-bar {
+  width: 20px;
+  height: 100%;
+  background: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.evaluation-bar__white {
+  width: 100%;
+  background: #f0f0f0;
+  transition: height 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .evaluation-bar {
+    width: 24px;
+  }
+}

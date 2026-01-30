@@ -31,7 +31,6 @@ export function cloneState(state: GameState): GameState {
     winner: state.winner,
     seed: state.seed,
     history: [...state.history],
-    drawnCard: state.drawnCard ? { ...state.drawnCard } : null,
   }
 }
 
@@ -41,6 +40,7 @@ function clonePlayerState(state: PlayerState): PlayerState {
     waste: [...state.waste],
     tableau: state.tableau.map((pile) => [...pile]),
     hand: [...state.hand],
+    drawnCard: state.drawnCard ? { ...state.drawnCard } : null,
   }
 }
 
@@ -77,7 +77,6 @@ export function initializeGame(seed?: number): GameState {
     winner: null,
     seed: gameSeed,
     history: [],
-    drawnCard: null,
   }
 }
 
@@ -103,6 +102,7 @@ function dealPlayerCards(deck: Card[]): PlayerState {
     waste: [],
     tableau,
     hand,
+    drawnCard: null,
   }
 }
 
@@ -115,7 +115,8 @@ export function checkWinCondition(state: GameState): Player | null {
     if (
       playerState.reserve.length === 0 &&
       playerState.hand.length === 0 &&
-      playerState.waste.length === 0
+      playerState.waste.length === 0 &&
+      playerState.drawnCard === null
     ) {
       return player
     }
@@ -130,7 +131,9 @@ export function switchTurn(state: GameState): GameState {
   const newState = cloneState(state)
   newState.currentTurn = getOpponent(state.currentTurn)
   newState.turnPhase = 'playing'
-  newState.drawnCard = null // Clear any drawn card when turn switches
+  // Clear any drawn card from both players (safety)
+  newState.player1.drawnCard = null
+  newState.player2.drawnCard = null
   return newState
 }
 
@@ -159,6 +162,10 @@ export function applyMove(state: GameState, move: Move): MoveResult {
     case 'waste':
       removedCard = playerState.waste.pop()
       break
+    case 'drawn':
+      removedCard = playerState.drawnCard ?? undefined
+      playerState.drawnCard = null
+      break
     case 'tableau': {
       // Can move from any tableau (own or opponent's)
       const fromOwner = move.from.owner
@@ -173,11 +180,6 @@ export function applyMove(state: GameState, move: Move): MoveResult {
 
   if (!removedCard) {
     return { valid: false, reason: 'No card at source' }
-  }
-
-  // Clear drawnCard if we just played the drawn card from waste
-  if (move.from.type === 'waste' && newState.drawnCard) {
-    newState.drawnCard = null
   }
 
   // Add card to destination
@@ -243,6 +245,12 @@ export function applyMove(state: GameState, move: Move): MoveResult {
  * This is the action that can end a turn
  */
 export function drawFromHand(state: GameState): MoveResult {
+  // Can't draw while holding a drawn card that must be played
+  const currentPlayerState = getPlayerState(state, state.currentTurn)
+  if (currentPlayerState.drawnCard) {
+    return { valid: false, reason: 'Must play drawn card first' }
+  }
+
   const newState = cloneState(state)
   const playerState = getPlayerState(newState, newState.currentTurn)
 
@@ -256,12 +264,11 @@ export function drawFromHand(state: GameState): MoveResult {
     playerState.waste = []
   }
 
-  // Draw one card from hand to waste
+  // Draw one card from hand to the drawn card slot
   const drawnCard = playerState.hand.pop()
   if (!drawnCard) {
     return { valid: false, reason: 'No card to draw' }
   }
-  playerState.waste.push(drawnCard)
   newState.moveCount++
 
   // Record draw in history
@@ -269,20 +276,21 @@ export function drawFromHand(state: GameState): MoveResult {
 
   // Check if drawn card can be played
   const movesWithDrawnCard = getMovesForCard(newState, drawnCard, {
-    type: 'waste',
+    type: 'drawn',
     owner: newState.currentTurn,
   })
 
   let turnEnded = false
   if (movesWithDrawnCard.length === 0) {
-    // Card cannot be played, turn ends
+    // Card cannot be played, move to waste and end turn
+    playerState.waste.push(drawnCard)
+    playerState.drawnCard = null
     turnEnded = true
-    newState.drawnCard = null
     newState.currentTurn = getOpponent(state.currentTurn)
     newState.turnPhase = 'playing'
   } else {
-    // Card can be played - mark it as the drawn card that must be played
-    newState.drawnCard = drawnCard
+    // Card can be played - put it in the drawn card slot (must be played immediately)
+    playerState.drawnCard = drawnCard
   }
 
   // Check win condition

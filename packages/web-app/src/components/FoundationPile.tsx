@@ -9,7 +9,6 @@ interface FoundationPileProps {
   onClick: (location: PileLocation) => void
   isSelected: (location: PileLocation) => boolean
   isValidTarget: (location: PileLocation) => boolean
-  onDrop: (location: PileLocation) => void
 }
 
 const SUIT_ICONS: Record<Suit, string> = {
@@ -26,25 +25,12 @@ export function FoundationPile({
   onClick,
   isSelected,
   isValidTarget,
-  onDrop,
 }: FoundationPileProps) {
   const topCard = cards[cards.length - 1]
   const selected = isSelected(location)
   const validTarget = isValidTarget(location)
 
   const handleClick = () => onClick(location)
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (validTarget) {
-      e.preventDefault()
-      e.dataTransfer.dropEffect = 'move'
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    onDrop(location)
-  }
 
   const pileId = `pile-foundation-${location.index}`
 
@@ -54,8 +40,6 @@ export function FoundationPile({
         className={`foundation-pile foundation-pile--empty ${validTarget ? 'foundation-pile--valid-target' : ''}`}
         data-pile-id={pileId}
         onClick={handleClick}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
       >
         <img
           src={SUIT_ICONS[suit]}
@@ -74,8 +58,6 @@ export function FoundationPile({
         onClick={handleClick}
         selected={selected}
         validTarget={validTarget}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
       />
     </div>
   )

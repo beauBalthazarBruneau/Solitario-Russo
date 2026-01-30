@@ -69,12 +69,14 @@ describe('Game Initialization', () => {
     totalCards += state.player1.reserve.length
     totalCards += state.player1.waste.length
     totalCards += state.player1.hand.length
+    totalCards += state.player1.drawnCard ? 1 : 0
     for (const pile of state.player1.tableau) {
       totalCards += pile.length
     }
     totalCards += state.player2.reserve.length
     totalCards += state.player2.waste.length
     totalCards += state.player2.hand.length
+    totalCards += state.player2.drawnCard ? 1 : 0
     for (const pile of state.player2.tableau) {
       totalCards += pile.length
     }
@@ -257,7 +259,7 @@ describe('Apply Move', () => {
 })
 
 describe('Draw From Hand', () => {
-  it('should draw a card to waste', () => {
+  it('should draw a card to drawn slot or waste (if unplayable)', () => {
     const state = initializeGame(12345)
     const playerState = getPlayerState(state, state.currentTurn)
     const originalHandSize = playerState.hand.length
@@ -267,11 +269,38 @@ describe('Draw From Hand', () => {
     expect(result.newState).toBeDefined()
 
     const newPlayerState = getPlayerState(result.newState!, state.currentTurn)
-    // Either turn ended (different player), or same player continues
     if (!result.turnEnded) {
-      expect(newPlayerState.waste.length).toBe(1)
+      // Card is playable: sits in drawnCard slot, not waste
+      expect(newPlayerState.drawnCard).not.toBeNull()
       expect(newPlayerState.hand.length).toBe(originalHandSize - 1)
+    } else {
+      // Card is unplayable: moved to waste, drawnCard cleared
+      expect(newPlayerState.drawnCard).toBeNull()
     }
+  })
+
+  it('should only allow drawn card moves when drawnCard is set', () => {
+    // Find a state where drawing produces a playable card
+    let foundState = false
+    for (let seed = 0; seed < 200; seed++) {
+      const state = initializeGame(seed)
+      const result = drawFromHand(state)
+      if (result.valid && result.newState && !result.turnEnded) {
+        const newState = result.newState
+        const ps = getPlayerState(newState, newState.currentTurn)
+        expect(ps.drawnCard).not.toBeNull()
+
+        // All valid moves should be from the 'drawn' location
+        const moves = getValidMoves(newState)
+        expect(moves.length).toBeGreaterThan(0)
+        for (const move of moves) {
+          expect(move.from.type).toBe('drawn')
+        }
+        foundState = true
+        break
+      }
+    }
+    expect(foundState).toBe(true)
   })
 })
 
@@ -281,15 +310,27 @@ describe('Win Condition', () => {
     expect(checkWinCondition(state)).toBeNull()
   })
 
-  it('should detect winner when reserve, hand, and waste are empty', () => {
+  it('should detect winner when reserve, hand, waste, and drawnCard are empty', () => {
     const state = initializeGame(12345)
 
     // Manually empty player1's piles (cheating for test)
     state.player1.reserve = []
     state.player1.hand = []
     state.player1.waste = []
+    state.player1.drawnCard = null
 
     expect(checkWinCondition(state)).toBe('player1')
+  })
+
+  it('should not detect winner if drawnCard is set', () => {
+    const state = initializeGame(12345)
+
+    state.player1.reserve = []
+    state.player1.hand = []
+    state.player1.waste = []
+    state.player1.drawnCard = { suit: 'hearts', rank: 5, deck: 'player1' }
+
+    expect(checkWinCondition(state)).toBeNull()
   })
 })
 

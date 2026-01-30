@@ -5,7 +5,6 @@
   padding: 8px 16px;
   background: rgba(0, 0, 0, 0.3);
   gap: 16px;
-  flex-wrap: wrap;
 }
 
 .game-status__info {
@@ -14,40 +13,10 @@
   gap: 16px;
 }
 
-.game-status__turn {
-  font-weight: bold;
-  font-size: 14px;
-}
-
 .game-status__winner {
   font-weight: bold;
   font-size: 16px;
   color: #ffd700;
-}
-
-.game-status__moves {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.game-status__scores {
-  display: flex;
-  gap: 16px;
-}
-
-.game-status__score {
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.game-status__score--p1 {
-  color: #ff6b6b;
-}
-
-.game-status__score--p2 {
-  color: #69b7ff;
 }
 
 .game-status__actions {
@@ -100,14 +69,5 @@
 @media (min-width: 768px) {
   .game-status {
     padding: 12px 24px;
-  }
-
-  .game-status__turn {
-    font-size: 16px;
-  }
-
-  .game-status__moves,
-  .game-status__score {
-    font-size: 14px;
   }
 }

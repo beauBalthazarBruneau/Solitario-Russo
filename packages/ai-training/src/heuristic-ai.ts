@@ -111,7 +111,7 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
 export interface BotProfile {
   id: string
   name: string
-  description: string
+  difficulty: 'Easy' | 'Medium' | 'Hard'
   weights: ScoreWeights
   config: AIConfig
 }
@@ -187,21 +187,21 @@ export const BOT_PROFILES: BotProfile[] = [
   {
     id: 'cali',
     name: 'Cali',
-    description: 'Latest bot with deep look-ahead and stack consolidation',
+    difficulty: 'Hard',
     weights: DEFAULT_WEIGHTS,
     config: DEFAULT_AI_CONFIG,
   },
   {
     id: 'bobbi-shmurda',
     name: 'Bobbi Shmurda',
-    description: 'Overnight-trained bot (82% vs Alpha-Bo)',
+    difficulty: 'Medium',
     weights: EVOLVED_WEIGHTS,
     config: EVOLVED_CONFIG,
   },
   {
     id: 'alpha-bo',
     name: 'Alpha-Bo',
-    description: 'Hand-tuned v1 bot',
+    difficulty: 'Easy',
     weights: ORIGINAL_WEIGHTS,
     config: ORIGINAL_CONFIG,
   },
@@ -360,8 +360,12 @@ function hashGameState(state: GameState): string {
   for (const pile of state.foundations) {
     parts.push(pile.map(c => `${c.suit}${c.rank}${c.deck}`).join(','))
   }
-  if (state.drawnCard) {
-    parts.push(`dc:${state.drawnCard.suit}${state.drawnCard.rank}${state.drawnCard.deck}`)
+  // Include per-player drawn cards in hash
+  for (const player of ['player1', 'player2'] as const) {
+    const ps = getPlayerState(state, player)
+    if (ps.drawnCard) {
+      parts.push(`dc${player}:${ps.drawnCard.suit}${ps.drawnCard.rank}${ps.drawnCard.deck}`)
+    }
   }
   return parts.join('|')
 }
@@ -431,7 +435,7 @@ function scoreMove(state: GameState, move: Move, weights: ScoreWeights): ScoredM
       score += weights.EMPTIES_RESERVE
       reasons.push('empties-reserve!')
     }
-  } else if (move.from.type === 'waste') {
+  } else if (move.from.type === 'waste' || move.from.type === 'drawn') {
     score += weights.FROM_WASTE
     reasons.push('from-waste')
   } else if (move.from.type === 'tableau') {
@@ -548,7 +552,8 @@ function getScoredMoves(
 
   // If there's a drawn card that must be played, don't filter by cycle detection
   // The player MUST play this card, even if it revisits a position
-  const shouldFilterCycles = !state.drawnCard
+  const currentPlayerState = getPlayerState(state, state.currentTurn)
+  const shouldFilterCycles = !currentPlayerState.drawnCard
 
   const cycleFiltered = shouldFilterCycles
     ? moves.filter(move => {

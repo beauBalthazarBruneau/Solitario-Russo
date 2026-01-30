@@ -8,7 +8,7 @@ export interface Card {
   deck: Player // Which deck this card belongs to
 }
 
-export type PileType = 'reserve' | 'waste' | 'tableau' | 'foundation' | 'hand'
+export type PileType = 'reserve' | 'waste' | 'tableau' | 'foundation' | 'hand' | 'drawn'
 
 export interface PileLocation {
   type: PileType
@@ -21,6 +21,7 @@ export interface PlayerState {
   waste: Card[] // Played from hand, top card (last in array) is accessible
   tableau: Card[][] // 4 piles, each pile's top card (last in array) is accessible
   hand: Card[] // Draw pile, face-down
+  drawnCard: Card | null // Card just drawn from hand that must be played immediately
 }
 
 export interface GameState {
@@ -33,7 +34,6 @@ export interface GameState {
   winner: Player | null
   seed: number // Random seed used to create this game (for replay/AI training)
   history: string[] // Move history in notation format
-  drawnCard: Card | null // Card just drawn from hand that can be played (null when not applicable)
 }
 
 export interface Move {

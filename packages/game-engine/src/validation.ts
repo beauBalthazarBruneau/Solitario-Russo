@@ -106,6 +106,8 @@ export function getCardAtLocation(state: GameState, location: PileLocation): Car
       return getTopCard(playerState.reserve)
     case 'waste':
       return getTopCard(playerState.waste)
+    case 'drawn':
+      return playerState.drawnCard ?? undefined
     case 'tableau': {
       const pile = playerState.tableau[location.index ?? 0]
       return pile ? getTopCard(pile) : undefined
@@ -195,17 +197,16 @@ export function getValidMoves(state: GameState): Move[] {
     }
   }
 
+  // If there's a drawn card, only that card can be played (immediate-play rule)
+  if (playerState.drawnCard) {
+    tryAddMove({ type: 'drawn', owner: currentPlayer }, playerState.drawnCard)
+    return moves
+  }
+
   // Can play from reserve (top card)
   const reserveCard = getTopCard(playerState.reserve)
   if (reserveCard) {
     tryAddMove({ type: 'reserve', owner: currentPlayer }, reserveCard)
-  }
-
-  // Can play the just-drawn card (if any)
-  // Note: drawnCard is set when a playable card is drawn from hand
-  // The card is physically in waste but tracked separately
-  if (state.drawnCard) {
-    tryAddMove({ type: 'waste', owner: currentPlayer }, state.drawnCard)
   }
 
   // Can play from ANY tableau (own + opponent's top cards)
@@ -236,6 +237,8 @@ export function getValidMoves(state: GameState): Move[] {
  */
 export function canDrawFromHand(state: GameState): boolean {
   const playerState = getPlayerState(state, state.currentTurn)
+  // Can't draw while holding a drawn card that must be played
+  if (playerState.drawnCard) return false
   return playerState.hand.length > 0 || playerState.waste.length > 0
 }
 
