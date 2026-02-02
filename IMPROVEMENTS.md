@@ -17,4 +17,4 @@
 
 
 ## Gameplay updates
-- when you draw, that card has to be plaed immediately or the turn is over.
+- can't attack your own hand (Done)

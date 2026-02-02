@@ -10,6 +10,7 @@ interface SettingsModalProps {
   onToggleAI: () => void
   selectedBotId: string
   onSelectBot: (botId: string) => void
+  onReplayTutorial: () => void
 }
 
 export function SettingsModal({
@@ -21,6 +22,7 @@ export function SettingsModal({
   onToggleAI,
   selectedBotId,
   onSelectBot,
+  onReplayTutorial,
 }: SettingsModalProps) {
   if (!isOpen) return null
 
@@ -68,6 +70,10 @@ export function SettingsModal({
               <span className="settings-modal__toggle-knob" />
             </button>
           </label>
+          <div className="settings-modal__divider" />
+          <button className="settings-modal__tutorial-button" onClick={onReplayTutorial}>
+            How to Play
+          </button>
         </div>
       </div>
     </div>

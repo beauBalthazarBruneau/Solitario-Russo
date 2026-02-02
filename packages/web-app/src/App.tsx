@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   initializeGame,
   applyMove,
@@ -17,6 +18,7 @@ import { HistorySheet } from './components/HistorySheet'
 import { AnimatingCard } from './components/AnimatingCard'
 import { SettingsModal } from './components/SettingsModal'
 import { EvaluationBar } from './components/EvaluationBar'
+import { TutorialPrompt } from './components/TutorialPrompt'
 import './App.css'
 
 interface GameTranscript {
@@ -56,7 +58,9 @@ function getElementPosition(dataId: string): { x: number; y: number; width: numb
   return { x: rect.left, y: rect.top, width: rect.width, height: rect.height }
 }
 
+
 function App() {
+  const navigate = useNavigate()
   const [gameState, setGameState] = useState<GameState>(() => initializeGame())
   const [stateHistory, setStateHistory] = useState<GameState[]>([])
   const [selectedPile, setSelectedPile] = useState<PileLocation | null>(null)
@@ -66,6 +70,7 @@ function App() {
   const [vsAI, setVsAI] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedBotId, setSelectedBotId] = useState(DEFAULT_BOT_PROFILE.id)
+  const [showTutorialPrompt, setShowTutorialPrompt] = useState(true)
 
   const selectedBot = useMemo(
     () => BOT_PROFILES.find((b) => b.id === selectedBotId) ?? DEFAULT_BOT_PROFILE,
@@ -81,7 +86,6 @@ function App() {
   const playNextAIMoveRef = useRef<() => void>(() => {})
 
   // Get source locations that have worthwhile moves (for hints)
-  // Only shows high-value moves: foundation, attacks, and tableau moves that expose useful cards
   const sourcesWithMoves = useMemo(() => {
     if (!showHints || gameState.winner || animation) return []
     const moves = getHintMoves(gameState)
@@ -103,7 +107,6 @@ function App() {
   const hasMovesFrom = useCallback(
     (location: PileLocation) => {
       if (!showHints) return false
-      // Hide hints when a card is selected (showing valid targets instead)
       if (selectedPile) return false
       const key = getPileDataId(location)
       return sourcesWithMoves.some(s => getPileDataId(s.location) === key)
@@ -112,7 +115,6 @@ function App() {
   )
 
   const handleNewGame = useCallback(() => {
-    // Clear any pending AI moves
     if (aiTimeoutRef.current) {
       clearTimeout(aiTimeoutRef.current)
       aiTimeoutRef.current = null
@@ -132,7 +134,6 @@ function App() {
     if (stateHistory.length === 0) return
     const previousState = stateHistory[stateHistory.length - 1]
     if (previousState) {
-      // Clear any pending AI moves when undoing
       if (aiTimeoutRef.current) {
         clearTimeout(aiTimeoutRef.current)
         aiTimeoutRef.current = null
@@ -149,9 +150,7 @@ function App() {
 
   const selectPile = useCallback(
     (location: PileLocation) => {
-      // Can't select foundations as source
       if (location.type === 'foundation') return
-      // Can only select own reserve/waste/drawn, but can select ANY tableau
       if (location.type !== 'tableau' && location.owner !== gameState.currentTurn) return
 
       const moves = getValidMoves(gameState)
@@ -184,12 +183,10 @@ function App() {
       if (move) {
         const result = applyMove(gameState, move)
         if (result.valid && result.newState) {
-          // Get positions for animation
           const fromPos = getElementPosition(getPileDataId(move.from))
           const toPos = getElementPosition(getPileDataId(move.to))
 
           if (fromPos && toPos) {
-            // Start animation
             isAnimating.current = true
             setAnimation({
               card: move.card,
@@ -199,7 +196,6 @@ function App() {
               pendingHistory: [...stateHistory, gameState],
             })
           } else {
-            // No animation, just apply immediately
             setStateHistory((prev) => [...prev, gameState])
             setGameState(result.newState)
           }
@@ -212,10 +208,8 @@ function App() {
     [gameState, validMoves, stateHistory]
   )
 
-  // Play next AI move with animation
   const playNextAIMove = useCallback(() => {
     if (aiMoveIndexRef.current >= aiMovesRef.current.length) {
-      // Done with AI moves
       aiMovesRef.current = []
       aiMoveIndexRef.current = 0
       return
@@ -226,7 +220,6 @@ function App() {
 
     const { decision } = step
 
-    // If it's a move (not a draw), animate it
     if (decision.type === 'move' && decision.move) {
       const move = decision.move
       const fromPos = getElementPosition(getPileDataId(move.from))
@@ -247,12 +240,10 @@ function App() {
       }
     }
 
-    // For draws or if we can't get positions, just apply the state
     setStateHistory(prev => [...prev, gameState])
     setGameState(step.state)
     aiMoveIndexRef.current++
 
-    // Schedule next move
     if (aiMoveIndexRef.current < aiMovesRef.current.length) {
       aiTimeoutRef.current = setTimeout(() => playNextAIMoveRef.current(), aiSpeed)
     } else {
@@ -269,11 +260,9 @@ function App() {
       setAnimation(null)
       isAnimating.current = false
 
-      // If this was an AI move, schedule the next one
       if (wasAIMove && aiMoveIndexRef.current < aiMovesRef.current.length) {
         aiTimeoutRef.current = setTimeout(() => playNextAIMoveRef.current(), aiSpeed)
       } else if (wasAIMove) {
-        // AI turn complete
         aiMovesRef.current = []
         aiMoveIndexRef.current = 0
       }
@@ -284,7 +273,6 @@ function App() {
     (location: PileLocation) => {
       if (gameState.winner) return
 
-      // If clicking on hand, draw a card
       if (location.type === 'hand' && location.owner === gameState.currentTurn) {
         const result = drawFromHand(gameState)
         if (result.valid && result.newState) {
@@ -296,13 +284,11 @@ function App() {
         return
       }
 
-      // If no pile is selected, try to select this one as source
       if (!selectedPile) {
         selectPile(location)
         return
       }
 
-      // A pile is already selected, try to make a move to this location
       tryMove(location)
     },
     [gameState, selectedPile, selectPile, tryMove]
@@ -332,16 +318,14 @@ function App() {
     [selectedPile]
   )
 
-  // Keep playNextAIMove ref updated
   playNextAIMoveRef.current = playNextAIMove
 
-  // Compute AI moves when it becomes AI's turn
+  // AI turn handling
   useEffect(() => {
     if (!vsAI || gameState.currentTurn !== 'player2' || gameState.winner || animation || isAnimating.current) {
       return
     }
 
-    // Compute moves if we don't have any queued
     if (aiMovesRef.current.length === 0) {
       const moves = computeAITurn(gameState, selectedBot.weights, selectedBot.config)
       if (moves.length > 0) {
@@ -350,7 +334,6 @@ function App() {
       }
     }
 
-    // Schedule next move if we have moves and no timeout pending
     if (aiMovesRef.current.length > 0 && !aiTimeoutRef.current) {
       aiTimeoutRef.current = setTimeout(() => {
         aiTimeoutRef.current = null
@@ -359,7 +342,7 @@ function App() {
     }
   }, [vsAI, gameState, animation, aiSpeed, selectedBot])
 
-  // Cleanup timeout on unmount
+  // Cleanup
   useEffect(() => {
     return () => {
       if (aiTimeoutRef.current) {
@@ -369,7 +352,7 @@ function App() {
     }
   }, [])
 
-  // Log completed AI games to localStorage
+  // Log completed games
   useEffect(() => {
     if (!vsAI || !gameState.winner) return
 
@@ -392,9 +375,24 @@ function App() {
       transcripts.push(transcript)
       localStorage.setItem('gameTranscripts', JSON.stringify(transcripts.slice(-1000)))
     } catch {
-      // Ignore storage errors (quota exceeded, etc.)
+      // Ignore
     }
   }, [gameState.winner, vsAI, selectedBotId, gameState])
+
+  // Tutorial navigation handlers
+  const handleStartTutorial = useCallback(() => {
+    setShowTutorialPrompt(false)
+    navigate('/tutorial')
+  }, [navigate])
+
+  const handleSkipTutorial = useCallback(() => {
+    setShowTutorialPrompt(false)
+  }, [])
+
+  const handleReplayTutorial = useCallback(() => {
+    setSettingsOpen(false)
+    navigate('/tutorial')
+  }, [navigate])
 
   const p1 = gameState.player1
   const p2 = gameState.player2
@@ -442,7 +440,16 @@ function App() {
         onToggleAI={() => setVsAI((v) => !v)}
         selectedBotId={selectedBotId}
         onSelectBot={setSelectedBotId}
+        onReplayTutorial={handleReplayTutorial}
       />
+
+      {/* First visit tutorial prompt */}
+      {showTutorialPrompt && (
+        <TutorialPrompt
+          onStart={handleStartTutorial}
+          onSkip={handleSkipTutorial}
+        />
+      )}
     </div>
   )
 }
