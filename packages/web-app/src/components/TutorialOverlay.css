@@ -212,13 +212,13 @@
 .tutorial-prompt__title {
   font-size: 24px;
   font-weight: 700;
-  color: #ffd700;
+  color: #fff;
   margin: 0 0 12px 0;
 }
 
 .tutorial-prompt__subtitle {
   font-size: 16px;
-  color: #ccc;
+  color: #fff;
   margin: 0 0 24px 0;
   line-height: 1.5;
 }
