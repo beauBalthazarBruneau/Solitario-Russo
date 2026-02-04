@@ -5,16 +5,15 @@ import {
   applyMove,
   drawFromHand,
   getValidMoves,
-  getHintMoves,
   type GameState,
   type Move,
   type PileLocation,
   type Card,
 } from '@russian-bank/game-engine'
-import { computeAITurn, BOT_PROFILES, DEFAULT_BOT_PROFILE, type AITurnStep } from '@russian-bank/ai-training'
+import { BOT_PROFILES, DEFAULT_BOT_PROFILE, type AITurnStep } from '@russian-bank/ai-training'
+import { useNeuralBot } from './hooks/useNeuralBot'
 import { GameBoard } from './components/GameBoard'
 import { GameStatus } from './components/GameStatus'
-import { HistorySheet } from './components/HistorySheet'
 import { AnimatingCard } from './components/AnimatingCard'
 import { SettingsModal } from './components/SettingsModal'
 import { EvaluationBar } from './components/EvaluationBar'
@@ -76,6 +75,10 @@ function App() {
     () => BOT_PROFILES.find((b) => b.id === selectedBotId) ?? DEFAULT_BOT_PROFILE,
     [selectedBotId]
   )
+
+  // Neural bot hook for handling model loading
+  const neuralBot = useNeuralBot(selectedBot)
+
   const aiSpeed = 300 // ms between AI moves
   const isAnimating = useRef(false)
 
@@ -84,34 +87,27 @@ function App() {
   const aiMoveIndexRef = useRef(0)
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const playNextAIMoveRef = useRef<() => void>(() => {})
+  const lastSeenTurn = useRef<'player1' | 'player2' | null>(null)
 
-  // Get source locations that have worthwhile moves (for hints)
-  const sourcesWithMoves = useMemo(() => {
-    if (!showHints || gameState.winner || animation) return []
-    const moves = getHintMoves(gameState)
-    const sources = new Map<string, { location: PileLocation; moveCount: number }>()
-
-    for (const move of moves) {
-      const key = getPileDataId(move.from)
-      const existing = sources.get(key)
-      if (existing) {
-        existing.moveCount++
-      } else {
-        sources.set(key, { location: move.from, moveCount: 1 })
-      }
-    }
-
-    return Array.from(sources.values())
-  }, [showHints, gameState, animation])
+  // Get best move from neural network for hints
+  const bestMoveHint = useMemo(() => {
+    if (!showHints || gameState.winner || animation) return null
+    if (gameState.currentTurn !== 'player1') return null // Only hint for human player
+    return neuralBot.getBestMove(gameState)
+  }, [showHints, gameState, animation, neuralBot])
 
   const hasMovesFrom = useCallback(
     (location: PileLocation) => {
-      if (!showHints) return false
+      if (!showHints || !bestMoveHint) return false
       if (selectedPile) return false
-      const key = getPileDataId(location)
-      return sourcesWithMoves.some(s => getPileDataId(s.location) === key)
+      // Check if this location is the source of the best move
+      return (
+        bestMoveHint.from.type === location.type &&
+        bestMoveHint.from.owner === location.owner &&
+        bestMoveHint.from.index === location.index
+      )
     },
-    [showHints, sourcesWithMoves, selectedPile]
+    [showHints, bestMoveHint, selectedPile]
   )
 
   const handleNewGame = useCallback(() => {
@@ -320,14 +316,36 @@ function App() {
 
   playNextAIMoveRef.current = playNextAIMove
 
+  // Track turn changes to clear stale AI moves
+  useEffect(() => {
+    if (lastSeenTurn.current !== null && lastSeenTurn.current !== gameState.currentTurn) {
+      // Turn changed - clear any pending AI moves
+      if (aiMovesRef.current.length > 0) {
+        aiMovesRef.current = []
+        aiMoveIndexRef.current = 0
+      }
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current)
+        aiTimeoutRef.current = null
+      }
+    }
+    lastSeenTurn.current = gameState.currentTurn
+  }, [gameState.currentTurn])
+
   // AI turn handling
   useEffect(() => {
     if (!vsAI || gameState.currentTurn !== 'player2' || gameState.winner || animation || isAnimating.current) {
       return
     }
 
+    // Don't start AI turn while neural model is loading
+    if (selectedBot.type === 'neural' && neuralBot.isLoading) {
+      return
+    }
+
     if (aiMovesRef.current.length === 0) {
-      const moves = computeAITurn(gameState, selectedBot.weights, selectedBot.config)
+      // Use neural bot's computeTurn if available, otherwise fall back to heuristic
+      const moves = neuralBot.computeTurn(gameState) as AITurnStep[]
       if (moves.length > 0) {
         aiMovesRef.current = moves
         aiMoveIndexRef.current = 0
@@ -340,7 +358,7 @@ function App() {
         playNextAIMoveRef.current()
       }, aiSpeed)
     }
-  }, [vsAI, gameState, animation, aiSpeed, selectedBot])
+  }, [vsAI, gameState, animation, aiSpeed, selectedBot, neuralBot])
 
   // Cleanup
   useEffect(() => {
@@ -399,6 +417,12 @@ function App() {
   const p1CardsLeft = p1.reserve.length + p1.hand.length + p1.waste.length + (p1.drawnCard ? 1 : 0)
   const p2CardsLeft = p2.reserve.length + p2.hand.length + p2.waste.length + (p2.drawnCard ? 1 : 0)
 
+  // Get neural network's win probability for player 1 (human)
+  const neuralWinProb = useMemo(() => {
+    if (!vsAI || animation) return undefined
+    return neuralBot.getWinProbability(gameState, 'player1')
+  }, [vsAI, animation, neuralBot, gameState])
+
   return (
     <div className="app">
       <GameStatus
@@ -410,8 +434,15 @@ function App() {
         vsAI={vsAI}
         botName={vsAI ? selectedBot.name : undefined}
       />
+      {/* Neural bot loading indicator */}
+      {vsAI && selectedBot.type === 'neural' && neuralBot.isLoading && (
+        <div className="neural-loading">Loading AI model...</div>
+      )}
+      {vsAI && selectedBot.type === 'neural' && neuralBot.usingFallback && !neuralBot.isLoading && (
+        <div className="neural-fallback">Using fallback AI (model not loaded)</div>
+      )}
       <div className="app__main">
-        <EvaluationBar player1Cards={p1CardsLeft} player2Cards={p2CardsLeft} />
+        <EvaluationBar player1Cards={p1CardsLeft} player2Cards={p2CardsLeft} neuralWinProb={neuralWinProb} />
         <GameBoard
           gameState={gameState}
           onPileClick={handlePileClick}
@@ -422,7 +453,6 @@ function App() {
           player2Name={vsAI ? selectedBot.name : 'Player 2'}
         />
       </div>
-      <HistorySheet history={gameState.history} />
       {animation && (
         <AnimatingCard
           card={animation.card}
@@ -441,6 +471,12 @@ function App() {
         selectedBotId={selectedBotId}
         onSelectBot={setSelectedBotId}
         onReplayTutorial={handleReplayTutorial}
+        gameData={{
+          seed: gameState.seed,
+          history: gameState.history,
+          winner: gameState.winner,
+          botId: selectedBotId,
+        }}
       />
 
       {/* First visit tutorial prompt */}

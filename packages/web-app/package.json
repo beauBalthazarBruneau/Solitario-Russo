@@ -11,6 +11,7 @@
   "dependencies": {
     "@russian-bank/ai-training": "*",
     "@russian-bank/game-engine": "*",
+    "@tensorflow/tfjs": "^4.22.0",
     "cardsJS": "^1.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

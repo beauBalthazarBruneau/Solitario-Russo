@@ -17,17 +17,22 @@
     "train:quick": "npx tsx src/scripts/overnight-train.ts --quick -v",
     "train:evolve": "npx tsx src/scripts/overnight-train.ts",
     "benchmark": "npx tsx src/scripts/benchmark.ts",
+    "depth-test": "npx tsx src/depth-comparison.ts",
+    "generate-data": "npx tsx src/scripts/generate-data.ts",
+    "train-neural": "npx tsx src/scripts/train-neural.ts",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@russian-bank/game-engine": "*",
+    "@tensorflow/tfjs": "^4.22.0",
     "commander": "^12.0.0",
     "pino": "^8.18.0",
     "pino-pretty": "^10.3.1"
   },
   "devDependencies": {
+    "@tensorflow/tfjs-node": "^4.22.0",
     "@types/node": "^20.11.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
