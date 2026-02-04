@@ -111,9 +111,13 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
 export interface BotProfile {
   id: string
   name: string
-  difficulty: 'Easy' | 'Medium' | 'Hard'
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Expert'
   weights: ScoreWeights
   config: AIConfig
+  /** Type of bot: 'heuristic' (default) or 'neural' */
+  type?: 'heuristic' | 'neural'
+  /** Path to model.json for neural bots */
+  modelPath?: string
 }
 
 /** Hand-tuned v1 weights (before any training). */
@@ -182,14 +186,27 @@ const EVOLVED_CONFIG: AIConfig = {
   lookAheadBranchFactor: 3,
 }
 
+/** Neural network bot profile (requires model to be loaded separately) */
+export const NEURAL_BOT_PROFILE: BotProfile = {
+  id: 'neural',
+  name: 'Desi',
+  difficulty: 'Expert',
+  weights: DEFAULT_WEIGHTS, // Fallback weights if model fails to load
+  config: DEFAULT_AI_CONFIG,
+  type: 'neural',
+  modelPath: '/models/value-network/model.json',
+}
+
 /** All available bot profiles, newest first. */
 export const BOT_PROFILES: BotProfile[] = [
+  NEURAL_BOT_PROFILE,
   {
     id: 'cali',
     name: 'Cali',
     difficulty: 'Hard',
     weights: DEFAULT_WEIGHTS,
     config: DEFAULT_AI_CONFIG,
+    type: 'heuristic',
   },
   {
     id: 'bobbi-shmurda',
@@ -197,6 +214,7 @@ export const BOT_PROFILES: BotProfile[] = [
     difficulty: 'Medium',
     weights: EVOLVED_WEIGHTS,
     config: EVOLVED_CONFIG,
+    type: 'heuristic',
   },
   {
     id: 'alpha-bo',
@@ -204,10 +222,11 @@ export const BOT_PROFILES: BotProfile[] = [
     difficulty: 'Easy',
     weights: ORIGINAL_WEIGHTS,
     config: ORIGINAL_CONFIG,
+    type: 'heuristic',
   },
 ]
 
-export const DEFAULT_BOT_PROFILE: BotProfile = BOT_PROFILES[0]!
+export const DEFAULT_BOT_PROFILE: BotProfile = BOT_PROFILES[0]! // Desi (neural) as default
 
 interface ScoredMove {
   move: Move

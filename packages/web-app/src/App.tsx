@@ -11,7 +11,8 @@ import {
   type PileLocation,
   type Card,
 } from '@russian-bank/game-engine'
-import { computeAITurn, BOT_PROFILES, DEFAULT_BOT_PROFILE, type AITurnStep } from '@russian-bank/ai-training'
+import { BOT_PROFILES, DEFAULT_BOT_PROFILE, type AITurnStep } from '@russian-bank/ai-training'
+import { useNeuralBot } from './hooks/useNeuralBot'
 import { GameBoard } from './components/GameBoard'
 import { GameStatus } from './components/GameStatus'
 import { HistorySheet } from './components/HistorySheet'
@@ -76,6 +77,10 @@ function App() {
     () => BOT_PROFILES.find((b) => b.id === selectedBotId) ?? DEFAULT_BOT_PROFILE,
     [selectedBotId]
   )
+
+  // Neural bot hook for handling model loading
+  const neuralBot = useNeuralBot(selectedBot)
+
   const aiSpeed = 300 // ms between AI moves
   const isAnimating = useRef(false)
 
@@ -84,6 +89,7 @@ function App() {
   const aiMoveIndexRef = useRef(0)
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const playNextAIMoveRef = useRef<() => void>(() => {})
+  const lastSeenTurn = useRef<'player1' | 'player2' | null>(null)
 
   // Get source locations that have worthwhile moves (for hints)
   const sourcesWithMoves = useMemo(() => {
@@ -320,14 +326,36 @@ function App() {
 
   playNextAIMoveRef.current = playNextAIMove
 
+  // Track turn changes to clear stale AI moves
+  useEffect(() => {
+    if (lastSeenTurn.current !== null && lastSeenTurn.current !== gameState.currentTurn) {
+      // Turn changed - clear any pending AI moves
+      if (aiMovesRef.current.length > 0) {
+        aiMovesRef.current = []
+        aiMoveIndexRef.current = 0
+      }
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current)
+        aiTimeoutRef.current = null
+      }
+    }
+    lastSeenTurn.current = gameState.currentTurn
+  }, [gameState.currentTurn])
+
   // AI turn handling
   useEffect(() => {
     if (!vsAI || gameState.currentTurn !== 'player2' || gameState.winner || animation || isAnimating.current) {
       return
     }
 
+    // Don't start AI turn while neural model is loading
+    if (selectedBot.type === 'neural' && neuralBot.isLoading) {
+      return
+    }
+
     if (aiMovesRef.current.length === 0) {
-      const moves = computeAITurn(gameState, selectedBot.weights, selectedBot.config)
+      // Use neural bot's computeTurn if available, otherwise fall back to heuristic
+      const moves = neuralBot.computeTurn(gameState) as AITurnStep[]
       if (moves.length > 0) {
         aiMovesRef.current = moves
         aiMoveIndexRef.current = 0
@@ -340,7 +368,7 @@ function App() {
         playNextAIMoveRef.current()
       }, aiSpeed)
     }
-  }, [vsAI, gameState, animation, aiSpeed, selectedBot])
+  }, [vsAI, gameState, animation, aiSpeed, selectedBot, neuralBot])
 
   // Cleanup
   useEffect(() => {
@@ -410,6 +438,13 @@ function App() {
         vsAI={vsAI}
         botName={vsAI ? selectedBot.name : undefined}
       />
+      {/* Neural bot loading indicator */}
+      {vsAI && selectedBot.type === 'neural' && neuralBot.isLoading && (
+        <div className="neural-loading">Loading AI model...</div>
+      )}
+      {vsAI && selectedBot.type === 'neural' && neuralBot.usingFallback && !neuralBot.isLoading && (
+        <div className="neural-fallback">Using fallback AI (model not loaded)</div>
+      )}
       <div className="app__main">
         <EvaluationBar player1Cards={p1CardsLeft} player2Cards={p2CardsLeft} />
         <GameBoard

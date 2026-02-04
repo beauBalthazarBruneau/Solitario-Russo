@@ -187,8 +187,8 @@ export function runDepthComparison(config: DepthComparisonConfig): DepthComparis
   }
 }
 
-// CLI runner
-if (import.meta.url === `file://${process.argv[1]}`) {
+// CLI runner (Node.js only)
+if (typeof process !== 'undefined' && process.argv && import.meta.url === `file://${process.argv[1]}`) {
   const depth1 = parseInt(process.argv[2] ?? '5', 10)
   const depth2 = parseInt(process.argv[3] ?? '10', 10)
   const branchFactor = parseInt(process.argv[4] ?? '2', 10)
