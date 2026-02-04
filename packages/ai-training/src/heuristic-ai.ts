@@ -98,11 +98,11 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
   explorationRate: 0.05,
   shufflePenalty: 50,
   patternMemory: 10,
-  lookAheadDepth: 3,
+  lookAheadDepth: 5,
   lookAheadFoundationBonus: 30,
   lookAheadEmptyBonus: 20,
   lookAheadAttackBonus: 15,
-  lookAheadBranchFactor: 4,
+  lookAheadBranchFactor: 2,
 }
 
 /**
@@ -292,7 +292,9 @@ function evaluateLookAhead(
   state: GameState,
   move: Move,
   depth: number,
-  branchFactor: number
+  branchFactor: number,
+  weights: ScoreWeights,
+  seenStates?: Set<string>
 ): LookAheadResult {
   if (depth <= 0) return { foundationMoves: 0, emptyCreatingMoves: 0, attackMoves: 0 }
 
@@ -300,6 +302,15 @@ function evaluateLookAhead(
   if (!result.valid || !result.newState) return { foundationMoves: 0, emptyCreatingMoves: 0, attackMoves: 0 }
 
   const newState = result.newState
+
+  // Cycle detection: kill branch if we've seen this state before
+  const stateHash = hashGameState(newState)
+  const seen = seenStates ?? new Set<string>()
+  if (seen.has(stateHash)) {
+    return { foundationMoves: 0, emptyCreatingMoves: 0, attackMoves: 0 }
+  }
+  seen.add(stateHash)
+
   const nextMoves = getValidMoves(newState)
 
   let foundationMoves = 0
@@ -312,21 +323,19 @@ function evaluateLookAhead(
     if (isAttackMove(newState, nextMove)) attackMoves++
   }
 
-  // Recurse deeper: prioritise foundation and attack moves when selecting branches
+  // Recurse deeper: use full scoreMove evaluation for branch selection
   if (depth > 1 && nextMoves.length > 0) {
-    // Sort branches: foundation first, then attack, then the rest
-    const sorted = [...nextMoves].sort((a, b) => {
-      const aScore = (a.to.type === 'foundation' ? 2 : 0) + (isAttackMove(newState, a) ? 1 : 0)
-      const bScore = (b.to.type === 'foundation' ? 2 : 0) + (isAttackMove(newState, b) ? 1 : 0)
-      return bScore - aScore
-    })
-    const movesToCheck = sorted.slice(0, branchFactor)
-    for (const nextMove of movesToCheck) {
-      const deeper = evaluateLookAhead(newState, nextMove, depth - 1, branchFactor)
-      // 50% discount per depth level
-      foundationMoves += deeper.foundationMoves * 0.5
-      emptyCreatingMoves += deeper.emptyCreatingMoves * 0.5
-      attackMoves += deeper.attackMoves * 0.5
+    // Score all moves and sort by score (best first)
+    const scoredMoves = nextMoves.map(m => scoreMove(newState, m, weights))
+    scoredMoves.sort((a, b) => b.score - a.score)
+
+    const movesToCheck = scoredMoves.slice(0, branchFactor)
+    for (const scoredMove of movesToCheck) {
+      const deeper = evaluateLookAhead(newState, scoredMove.move, depth - 1, branchFactor, weights, seen)
+      // 80% retention per depth level (20% discount)
+      foundationMoves += deeper.foundationMoves * 0.8
+      emptyCreatingMoves += deeper.emptyCreatingMoves * 0.8
+      attackMoves += deeper.attackMoves * 0.8
     }
   }
 
@@ -603,7 +612,7 @@ function getScoredMoves(
 
     // Look-ahead: bonus for moves that enable valuable future plays
     if (config.lookAheadDepth > 0 && move.to.type !== 'foundation') {
-      const ahead = evaluateLookAhead(state, move, config.lookAheadDepth, config.lookAheadBranchFactor)
+      const ahead = evaluateLookAhead(state, move, config.lookAheadDepth, config.lookAheadBranchFactor, weights)
       let lookAheadBonus = 0
       const parts: string[] = []
       if (ahead.foundationMoves > 0) {

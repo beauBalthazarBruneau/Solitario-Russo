@@ -15,3 +15,5 @@ export {
 } from './heuristic-ai.js'
 
 export { runGridSearch, type GridSearchConfig, type GridSearchResult } from './grid-search.js'
+
+export { runDepthComparison, type DepthComparisonConfig, type DepthComparisonResult } from './depth-comparison.js'

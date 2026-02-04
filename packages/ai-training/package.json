@@ -17,6 +17,7 @@
     "train:quick": "npx tsx src/scripts/overnight-train.ts --quick -v",
     "train:evolve": "npx tsx src/scripts/overnight-train.ts",
     "benchmark": "npx tsx src/scripts/benchmark.ts",
+    "depth-test": "npx tsx src/depth-comparison.ts",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
