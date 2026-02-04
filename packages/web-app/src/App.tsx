@@ -5,7 +5,6 @@ import {
   applyMove,
   drawFromHand,
   getValidMoves,
-  getHintMoves,
   type GameState,
   type Move,
   type PileLocation,
@@ -90,33 +89,25 @@ function App() {
   const playNextAIMoveRef = useRef<() => void>(() => {})
   const lastSeenTurn = useRef<'player1' | 'player2' | null>(null)
 
-  // Get source locations that have worthwhile moves (for hints)
-  const sourcesWithMoves = useMemo(() => {
-    if (!showHints || gameState.winner || animation) return []
-    const moves = getHintMoves(gameState)
-    const sources = new Map<string, { location: PileLocation; moveCount: number }>()
-
-    for (const move of moves) {
-      const key = getPileDataId(move.from)
-      const existing = sources.get(key)
-      if (existing) {
-        existing.moveCount++
-      } else {
-        sources.set(key, { location: move.from, moveCount: 1 })
-      }
-    }
-
-    return Array.from(sources.values())
-  }, [showHints, gameState, animation])
+  // Get best move from neural network for hints
+  const bestMoveHint = useMemo(() => {
+    if (!showHints || gameState.winner || animation) return null
+    if (gameState.currentTurn !== 'player1') return null // Only hint for human player
+    return neuralBot.getBestMove(gameState)
+  }, [showHints, gameState, animation, neuralBot])
 
   const hasMovesFrom = useCallback(
     (location: PileLocation) => {
-      if (!showHints) return false
+      if (!showHints || !bestMoveHint) return false
       if (selectedPile) return false
-      const key = getPileDataId(location)
-      return sourcesWithMoves.some(s => getPileDataId(s.location) === key)
+      // Check if this location is the source of the best move
+      return (
+        bestMoveHint.from.type === location.type &&
+        bestMoveHint.from.owner === location.owner &&
+        bestMoveHint.from.index === location.index
+      )
     },
-    [showHints, sourcesWithMoves, selectedPile]
+    [showHints, bestMoveHint, selectedPile]
   )
 
   const handleNewGame = useCallback(() => {

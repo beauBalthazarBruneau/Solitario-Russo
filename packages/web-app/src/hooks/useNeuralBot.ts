@@ -6,9 +6,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as tf from '@tensorflow/tfjs'
 import type { GameState } from '@russian-bank/game-engine'
+import type { Move } from '@russian-bank/game-engine'
 import {
   computeNeuralTurn,
   computeAITurn,
+  evaluateMoves,
   type BotProfile,
   type AITurnStep,
   type NeuralTurnStep,
@@ -28,6 +30,8 @@ export interface NeuralBotState {
 export interface UseNeuralBotReturn extends NeuralBotState {
   /** Compute AI turn using neural network (or fallback) */
   computeTurn: (state: GameState) => AITurnStep[] | NeuralTurnStep[]
+  /** Get the best move for the current player according to neural network */
+  getBestMove: (state: GameState) => Move | null
   /** Retry loading the model */
   retryLoad: () => void
 }
@@ -139,6 +143,34 @@ export function useNeuralBot(botProfile: BotProfile): UseNeuralBotReturn {
     [state.usingFallback, botProfile.weights, botProfile.config]
   )
 
+  // Get best move for hints
+  const getBestMove = useCallback(
+    (gameState: GameState): Move | null => {
+      // Use neural network if available
+      if (modelRef.current && !state.usingFallback) {
+        try {
+          const scoredMoves = evaluateMoves(modelRef.current, gameState)
+          if (scoredMoves.length > 0) {
+            return scoredMoves[0]!.move
+          }
+        } catch (err) {
+          console.warn('Neural network evaluation failed:', err)
+        }
+      }
+
+      // Fallback: compute a turn and return the first move
+      const steps = computeAITurn(gameState, botProfile.weights, botProfile.config)
+      for (const step of steps) {
+        if (step.decision.type === 'move' && step.decision.move) {
+          return step.decision.move
+        }
+      }
+
+      return null
+    },
+    [state.usingFallback, botProfile.weights, botProfile.config]
+  )
+
   // Retry loading
   const retryLoad = useCallback(() => {
     loadModel()
@@ -147,6 +179,7 @@ export function useNeuralBot(botProfile: BotProfile): UseNeuralBotReturn {
   return {
     ...state,
     computeTurn,
+    getBestMove,
     retryLoad,
   }
 }
