@@ -6,11 +6,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as tf from '@tensorflow/tfjs'
 import type { GameState } from '@russian-bank/game-engine'
-import type { Move } from '@russian-bank/game-engine'
+import type { Move, Player } from '@russian-bank/game-engine'
 import {
   computeNeuralTurn,
   computeAITurn,
   evaluateMoves,
+  evaluateState,
   type BotProfile,
   type AITurnStep,
   type NeuralTurnStep,
@@ -32,6 +33,8 @@ export interface UseNeuralBotReturn extends NeuralBotState {
   computeTurn: (state: GameState) => AITurnStep[] | NeuralTurnStep[]
   /** Get the best move for the current player according to neural network */
   getBestMove: (state: GameState) => Move | null
+  /** Get win probability for a player (0-1), returns undefined if model not loaded */
+  getWinProbability: (state: GameState, forPlayer: Player) => number | undefined
   /** Retry loading the model */
   retryLoad: () => void
 }
@@ -171,6 +174,23 @@ export function useNeuralBot(botProfile: BotProfile): UseNeuralBotReturn {
     [state.usingFallback, botProfile.weights, botProfile.config]
   )
 
+  // Get win probability for a player
+  const getWinProbability = useCallback(
+    (gameState: GameState, forPlayer: Player): number | undefined => {
+      if (!modelRef.current || state.usingFallback) {
+        return undefined
+      }
+
+      try {
+        return evaluateState(modelRef.current, gameState, forPlayer)
+      } catch (err) {
+        console.warn('Neural network evaluation failed:', err)
+        return undefined
+      }
+    },
+    [state.usingFallback]
+  )
+
   // Retry loading
   const retryLoad = useCallback(() => {
     loadModel()
@@ -180,6 +200,7 @@ export function useNeuralBot(botProfile: BotProfile): UseNeuralBotReturn {
     ...state,
     computeTurn,
     getBestMove,
+    getWinProbability,
     retryLoad,
   }
 }

@@ -417,6 +417,12 @@ function App() {
   const p1CardsLeft = p1.reserve.length + p1.hand.length + p1.waste.length + (p1.drawnCard ? 1 : 0)
   const p2CardsLeft = p2.reserve.length + p2.hand.length + p2.waste.length + (p2.drawnCard ? 1 : 0)
 
+  // Get neural network's win probability for player 1 (human)
+  const neuralWinProb = useMemo(() => {
+    if (!vsAI || animation) return undefined
+    return neuralBot.getWinProbability(gameState, 'player1')
+  }, [vsAI, animation, neuralBot, gameState])
+
   return (
     <div className="app">
       <GameStatus
@@ -436,7 +442,7 @@ function App() {
         <div className="neural-fallback">Using fallback AI (model not loaded)</div>
       )}
       <div className="app__main">
-        <EvaluationBar player1Cards={p1CardsLeft} player2Cards={p2CardsLeft} />
+        <EvaluationBar player1Cards={p1CardsLeft} player2Cards={p2CardsLeft} neuralWinProb={neuralWinProb} />
         <GameBoard
           gameState={gameState}
           onPileClick={handlePileClick}
