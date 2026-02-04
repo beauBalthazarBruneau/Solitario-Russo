@@ -15,7 +15,6 @@ import { BOT_PROFILES, DEFAULT_BOT_PROFILE, type AITurnStep } from '@russian-ban
 import { useNeuralBot } from './hooks/useNeuralBot'
 import { GameBoard } from './components/GameBoard'
 import { GameStatus } from './components/GameStatus'
-import { HistorySheet } from './components/HistorySheet'
 import { AnimatingCard } from './components/AnimatingCard'
 import { SettingsModal } from './components/SettingsModal'
 import { EvaluationBar } from './components/EvaluationBar'
@@ -457,7 +456,6 @@ function App() {
           player2Name={vsAI ? selectedBot.name : 'Player 2'}
         />
       </div>
-      <HistorySheet history={gameState.history} />
       {animation && (
         <AnimatingCard
           card={animation.card}
@@ -476,6 +474,12 @@ function App() {
         selectedBotId={selectedBotId}
         onSelectBot={setSelectedBotId}
         onReplayTutorial={handleReplayTutorial}
+        gameData={{
+          seed: gameState.seed,
+          history: gameState.history,
+          winner: gameState.winner,
+          botId: selectedBotId,
+        }}
       />
 
       {/* First visit tutorial prompt */}
