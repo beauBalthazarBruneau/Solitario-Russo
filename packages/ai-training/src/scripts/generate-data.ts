@@ -13,6 +13,8 @@ import {
   generateTrainingData,
   shuffleExamples,
   serializeExamples,
+  serializeExamplesBinary,
+  deserializeExamplesBinary,
   type TrainingExample,
 } from '../neural/training-data.js'
 
@@ -83,37 +85,52 @@ program
     if (append && fs.existsSync(outputPath)) {
       console.log('Loading existing data...')
       try {
-        const existingData = JSON.parse(fs.readFileSync(outputPath, 'utf-8'))
-        // Re-inflate existing examples
-        const existingExamples: TrainingExample[] = []
-        for (let i = 0; i < existingData.numExamples; i++) {
-          const featureStart = i * existingData.featureSize
-          const features = new Float32Array(
-            existingData.features.slice(featureStart, featureStart + existingData.featureSize)
-          )
-          existingExamples.push({
-            features,
-            player: 'player1',
-            label: existingData.labels[i],
-          })
+        // Try binary format first
+        if (outputPath.endsWith('.bin')) {
+          const existingBuffer = fs.readFileSync(outputPath)
+          const existingExamples = deserializeExamplesBinary(existingBuffer)
+          finalExamples = [...existingExamples, ...examples]
+        } else {
+          const existingData = JSON.parse(fs.readFileSync(outputPath, 'utf-8'))
+          // Re-inflate existing examples
+          const existingExamples: TrainingExample[] = []
+          for (let i = 0; i < existingData.numExamples; i++) {
+            const featureStart = i * existingData.featureSize
+            const features = new Float32Array(
+              existingData.features.slice(featureStart, featureStart + existingData.featureSize)
+            )
+            existingExamples.push({
+              features,
+              player: 'player1',
+              label: existingData.labels[i],
+            })
+          }
+          finalExamples = [...existingExamples, ...examples]
         }
-        finalExamples = [...existingExamples, ...examples]
-        console.log(`  Combined ${existingExamples.length} existing + ${examples.length} new = ${finalExamples.length} total`)
+        console.log(`  Combined ${finalExamples.length - examples.length} existing + ${examples.length} new = ${finalExamples.length} total`)
         shuffleExamples(finalExamples) // Re-shuffle combined data
       } catch (err) {
         console.warn('  Warning: Could not read existing file, creating new one')
       }
     }
 
-    // Serialize and save
-    console.log('Serializing data...')
-    const serialized = serializeExamples(finalExamples)
+    // Serialize and save - use binary for large datasets or .bin extension
+    const useBinary = outputPath.endsWith('.bin') || finalExamples.length > 500000
+    console.log(`Serializing data (${useBinary ? 'binary' : 'JSON'} format)...`)
 
     console.log('Saving to disk...')
-    fs.writeFileSync(outputPath, JSON.stringify(serialized))
+    if (useBinary) {
+      const binaryData = serializeExamplesBinary(finalExamples)
+      const binPath = outputPath.endsWith('.bin') ? outputPath : outputPath.replace(/\.json$/, '.bin')
+      fs.writeFileSync(binPath, binaryData)
+    } else {
+      const serialized = serializeExamples(finalExamples)
+      fs.writeFileSync(outputPath, JSON.stringify(serialized))
+    }
 
     const elapsed = (Date.now() - startTime) / 1000
-    const fileSize = fs.statSync(outputPath).size
+    const actualPath = useBinary && !outputPath.endsWith('.bin') ? outputPath.replace(/\.json$/, '.bin') : outputPath
+    const fileSize = fs.statSync(actualPath).size
 
     // Count win/loss distribution
     const wins = finalExamples.filter(e => e.label === 1).length

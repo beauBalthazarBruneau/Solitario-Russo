@@ -220,18 +220,105 @@ export interface SerializedTrainingData {
 }
 
 /**
- * Serialize training examples to JSON-compatible format
+ * Serialize training examples to JSON-compatible format (for small datasets)
  */
 export function serializeExamples(examples: TrainingExample[]): SerializedTrainingData {
   const { features, labels } = examplesToTensors(examples)
+
+  // For large datasets, this will fail - use serializeExamplesBinary instead
+  const featuresArray: number[] = []
+  const labelsArray: number[] = []
+
+  for (let i = 0; i < features.length; i++) {
+    featuresArray.push(features[i]!)
+  }
+  for (let i = 0; i < labels.length; i++) {
+    labelsArray.push(labels[i]!)
+  }
 
   return {
     version: 1,
     featureSize: STATE_ENCODING_SIZE,
     numExamples: examples.length,
-    features: Array.from(features),
-    labels: Array.from(labels),
+    features: featuresArray,
+    labels: labelsArray,
   }
+}
+
+/**
+ * Binary format header for training data
+ */
+export interface BinaryHeader {
+  version: number
+  featureSize: number
+  numExamples: number
+}
+
+/**
+ * Serialize training examples to binary format (for large datasets)
+ * Format: [header: 12 bytes] [features: numExamples * featureSize * 4 bytes] [labels: numExamples * 4 bytes]
+ */
+export function serializeExamplesBinary(examples: TrainingExample[]): Buffer {
+  const { features, labels } = examplesToTensors(examples)
+
+  // Header: version (4 bytes) + featureSize (4 bytes) + numExamples (4 bytes)
+  const headerSize = 12
+  const featuresSize = features.byteLength // numExamples * featureSize * 4
+  const labelsSize = labels.byteLength // numExamples * 4 (Float32Array)
+
+  const buffer = Buffer.alloc(headerSize + featuresSize + labelsSize)
+
+  // Write header
+  buffer.writeUInt32LE(1, 0) // version
+  buffer.writeUInt32LE(STATE_ENCODING_SIZE, 4) // featureSize
+  buffer.writeUInt32LE(examples.length, 8) // numExamples
+
+  // Write features
+  Buffer.from(features.buffer).copy(buffer, headerSize)
+
+  // Write labels (Float32Array)
+  Buffer.from(labels.buffer).copy(buffer, headerSize + featuresSize)
+
+  return buffer
+}
+
+/**
+ * Deserialize training examples from binary format
+ */
+export function deserializeExamplesBinary(buffer: Buffer): TrainingExample[] {
+  // Read header
+  const version = buffer.readUInt32LE(0)
+  if (version !== 1) {
+    throw new Error(`Unsupported binary training data version: ${version}`)
+  }
+
+  const featureSize = buffer.readUInt32LE(4)
+  const numExamples = buffer.readUInt32LE(8)
+
+  const headerSize = 12
+  const featuresSize = numExamples * featureSize * 4
+  const labelsSize = numExamples * 4 // Float32Array
+
+  // Read features
+  const featuresBuffer = buffer.subarray(headerSize, headerSize + featuresSize)
+  const features = new Float32Array(featuresBuffer.buffer, featuresBuffer.byteOffset, numExamples * featureSize)
+
+  // Read labels (Float32Array)
+  const labelsBuffer = buffer.subarray(headerSize + featuresSize, headerSize + featuresSize + labelsSize)
+  const labels = new Float32Array(labelsBuffer.buffer, labelsBuffer.byteOffset, numExamples)
+
+  // Convert to examples
+  const examples: TrainingExample[] = []
+  for (let i = 0; i < numExamples; i++) {
+    const featureStart = i * featureSize
+    examples.push({
+      features: features.slice(featureStart, featureStart + featureSize),
+      player: 'player1',
+      label: labels[i]!,
+    })
+  }
+
+  return examples
 }
 
 /**

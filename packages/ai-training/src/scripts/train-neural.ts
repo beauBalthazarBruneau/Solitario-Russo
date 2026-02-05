@@ -14,6 +14,7 @@ import * as tf from '@tensorflow/tfjs-node'
 import { createValueNetwork, compileModel, getModelInfo } from '../neural/model.js'
 import { STATE_ENCODING_SIZE } from '../neural/state-encoder.js'
 import type { SerializedTrainingData } from '../neural/training-data.js'
+import { deserializeExamplesBinary } from '../neural/training-data.js'
 
 const program = new Command()
 
@@ -58,26 +59,63 @@ program
       process.exit(1)
     }
 
-    const rawData = fs.readFileSync(dataPath, 'utf-8')
-    const data: SerializedTrainingData = JSON.parse(rawData)
+    let numExamples: number
+    let featureSize: number
+    let featuresArray: number[] | Float32Array
+    let labelsArray: number[] | Float32Array
 
-    console.log(`  Loaded ${data.numExamples} examples`)
-    console.log(`  Feature size: ${data.featureSize}`)
+    if (dataPath.endsWith('.bin')) {
+      // Binary format
+      const buffer = fs.readFileSync(dataPath)
+      const version = buffer.readUInt32LE(0)
+      featureSize = buffer.readUInt32LE(4)
+      numExamples = buffer.readUInt32LE(8)
 
-    if (data.featureSize !== STATE_ENCODING_SIZE) {
-      console.error(`Error: Feature size mismatch. Expected ${STATE_ENCODING_SIZE}, got ${data.featureSize}`)
+      if (version !== 1) {
+        console.error(`Error: Unsupported binary version: ${version}`)
+        process.exit(1)
+      }
+
+      const headerSize = 12
+      const featuresSize = numExamples * featureSize * 4
+      const labelsSize = numExamples * 4 // Float32Array
+
+      const featuresBuffer = buffer.subarray(headerSize, headerSize + featuresSize)
+      featuresArray = new Float32Array(featuresBuffer.buffer, featuresBuffer.byteOffset, numExamples * featureSize)
+
+      const labelsBuffer = buffer.subarray(headerSize + featuresSize, headerSize + featuresSize + labelsSize)
+      labelsArray = new Float32Array(labelsBuffer.buffer, labelsBuffer.byteOffset, numExamples)
+    } else {
+      // JSON format
+      const rawData = fs.readFileSync(dataPath, 'utf-8')
+      const data: SerializedTrainingData = JSON.parse(rawData)
+      numExamples = data.numExamples
+      featureSize = data.featureSize
+      featuresArray = data.features
+      labelsArray = data.labels
+    }
+
+    console.log(`  Loaded ${numExamples} examples`)
+    console.log(`  Feature size: ${featureSize}`)
+
+    if (featureSize !== STATE_ENCODING_SIZE) {
+      console.error(`Error: Feature size mismatch. Expected ${STATE_ENCODING_SIZE}, got ${featureSize}`)
       process.exit(1)
     }
 
     // Convert to tensors
     console.log('Preparing tensors...')
-    const features = tf.tensor2d(data.features, [data.numExamples, data.featureSize])
-    const labels = tf.tensor2d(data.labels, [data.numExamples, 1])
+    // Use typed arrays directly for large datasets
+    const features = tf.tensor2d(featuresArray as Float32Array | number[], [numExamples, featureSize])
+    const labels = tf.tensor2d(labelsArray as Uint8Array | number[], [numExamples, 1])
 
     // Check label distribution
-    const labelSum = data.labels.reduce((a, b) => a + b, 0)
-    console.log(`  Win labels: ${labelSum} (${((labelSum / data.numExamples) * 100).toFixed(1)}%)`)
-    console.log(`  Loss labels: ${data.numExamples - labelSum} (${(((data.numExamples - labelSum) / data.numExamples) * 100).toFixed(1)}%)`)
+    let labelSum = 0
+    for (let i = 0; i < labelsArray.length; i++) {
+      labelSum += labelsArray[i]!
+    }
+    console.log(`  Win labels: ${labelSum} (${((labelSum / numExamples) * 100).toFixed(1)}%)`)
+    console.log(`  Loss labels: ${numExamples - labelSum} (${(((numExamples - labelSum) / numExamples) * 100).toFixed(1)}%)`)
 
     // Create model
     console.log('')
